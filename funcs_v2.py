@@ -1,3 +1,4 @@
+import decimal
 import csv
 import sys
 
@@ -44,14 +45,14 @@ The writer function takes the processed values and write it back to the csv.
 
 
 def read_csv(filename):
-    with open(filename) as readfile:
+    with open(filename, newline='') as readfile:
         reader = csv.DictReader(readfile)
         return [row for row in reader]
 
 
 def write_csv(filename, data):
     fieldnames = ["id", "ticker", "amount"]
-    with open(filename, "w") as writefile:
+    with open(filename, "w", newline='') as writefile:
         writer = csv.DictWriter(writefile, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(data)
