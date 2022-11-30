@@ -69,7 +69,7 @@ def deposit(ticker, amount):
     if in_portfolio(ticker):
         for coin in portfolio:
             if coin["ticker"] == ticker:
-                coin["amount"] = float(coin["amount"]) + float(amount)
+                coin["amount"] = decimal.Decimal(coin["amount"]) + decimal.Decimal(amount)
     else:
         portfolio.append(
             {"ticker": ticker, "amount": amount, "id": get_coin_id(ticker)}
@@ -84,7 +84,7 @@ def withdraw(ticker, amount):
     if in_portfolio(ticker):
         for coin in portfolio:
             if coin["ticker"] == ticker:
-                coin["amount"] = float(coin["amount"]) - float(amount)
+                coin["amount"] = decimal.Decimal(coin["amount"]) - decimal.Decimal(amount)
                 if coin["amount"] < 0:
                     sys.exit("ERROR: not enough funds to withdraw")
 
