@@ -67,7 +67,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-def main():
+def main() -> None:
     if args.deposit:
         valid_args(*args.deposit)
         deposit(args.deposit[0], args.deposit[1])
