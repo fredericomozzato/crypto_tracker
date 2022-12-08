@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 
 from funcs_v2 import (
     valid_args,
@@ -69,19 +70,28 @@ args = parser.parse_args()
 
 def main() -> None:
     if args.deposit:
-        valid_args(*args.deposit)
-        deposit(args.deposit[0], args.deposit[1])
+        if valid_args(*args.deposit):
+            deposit(args.deposit[0], args.deposit[1])
+        else:
+            sys.exit("ERROR: Invalid coin")
 
     elif args.withdraw:
-        valid_args(*args.withdraw)
-        withdraw(args.withdraw[0], args.withdraw[1])
+        if valid_args(*args.withdraw):
+            withdraw(args.withdraw[0], args.withdraw[1])
+        else:
+            sys.exit("ERROR: Invalid coin")
 
     elif args.update:
-        valid_args(*args.update)
-        update(args.update[0], args.update[1])
+        if valid_args(*args.update):
+            update(args.update[0], args.update[1])
+        else:
+            sys.exit("ERROR: Invalid coin")
 
     elif args.erase:
-        erase(args.erase[0])
+        if valid_args(*args.erase):
+            erase(args.erase[0])
+        else:
+            sys.exit("ERROR: Invalid coin")
 
     elif args.reset:
         reset()

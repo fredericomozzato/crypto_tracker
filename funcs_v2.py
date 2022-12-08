@@ -3,7 +3,7 @@ import csv
 from typing import List, Tuple
 import sys
 
-from pycoingecko import CoinGeckoAPI    #type: ignore
+from pycoingecko import CoinGeckoAPI    # type: ignore
 
 from supported_coins import supported_coins
 
@@ -15,7 +15,8 @@ portfolio_file: str = "portfolio.csv"
 def valid_args(ticker: str, amount: str) -> bool:
     if valid_coin(ticker) and valid_amount(amount):
         return True
-    return False
+    else:
+        return False
 
 
 def valid_coin(ticker: str) -> bool:
@@ -27,13 +28,14 @@ def valid_coin(ticker: str) -> bool:
     return False
 
 
-def valid_amount(amount: str) -> None:
+def valid_amount(amount: str) -> bool:
     try:
         float(amount)
+        if float(amount) < 0:
+            sys.exit("ERROR: amount must be a positive number")
+        else:
+            return True
     except ValueError:
-        sys.exit("ERROR: amount must be a positive number")
-
-    if float(amount) < 0:
         sys.exit("ERROR: amount must be a positive number")
 
 
@@ -189,7 +191,7 @@ def get_coin_id(ticker: str) -> str:
             continue
 
 
-def get_values() -> Tuple[List[dict], Tuple[int, int]]:
+def get_values() -> Tuple[List[dict], Tuple[float, float]]:
     portfolio: List[dict] = read_csv(portfolio_file)
     rates: List[dict] = get_rates(portfolio)
     deltas: dict = get_delta(portfolio)
@@ -200,7 +202,7 @@ def get_values() -> Tuple[List[dict], Tuple[int, int]]:
         coin["brl_value"] = float(coin["amount"]) * float(coin["rates"]["brl"])
         coin["delta_24"] = deltas[coin["id"]]
 
-    totals: Tuple[int, int] = get_totals(portfolio)
+    totals: Tuple[float, float] = get_totals(portfolio)
 
     for coin in portfolio:
         coin["%"] = (float(coin["usd_value"]) / totals[0]) * 100
@@ -221,8 +223,9 @@ def get_delta(portfolio: List[dict]) -> dict:
     return {coin["id"]: coin["price_change_percentage_24h"] for coin in market_data}
 
 
-def get_totals(portfolio: List[dict]) -> Tuple[int, int]:
-    total_usd, total_brl = 0, 0
+def get_totals(portfolio: List[dict]) -> Tuple[float, float]:
+    total_usd: float = 0.0
+    total_brl: float = 0.0
     for coin in portfolio:
         total_usd += float(coin["usd_value"])
         total_brl += float(coin["brl_value"])
