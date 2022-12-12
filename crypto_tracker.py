@@ -7,17 +7,7 @@ By Frederico Mozzato
 import argparse
 import os
 
-from funcs_v2 import (
-    valid_args,
-    valid_coin,
-    deposit,
-    withdraw,
-    update,
-    erase,
-    reset,
-    print_table,
-    create_new_portfolio
-)
+from funcs_v2 import valid_args, valid_coin, deposit, withdraw, update, erase, reset, print_table, create_new_portfolio
 
 
 if os.path.exists("./portfolio.csv"):

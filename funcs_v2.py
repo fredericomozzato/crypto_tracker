@@ -3,7 +3,7 @@ import csv
 from typing import List, Tuple
 import sys
 
-from pycoingecko import CoinGeckoAPI    # type: ignore
+from pycoingecko import CoinGeckoAPI  # type: ignore
 
 from supported_coins import supported_coins
 
@@ -67,7 +67,7 @@ def read_csv(filename: str) -> List[dict]:
     :param filename: name of the portfolio file
     :return: a list containing one dict for each coin in the portfolio
     """
-    with open(filename, newline='') as readfile:
+    with open(filename, newline="") as readfile:
         reader = csv.DictReader(readfile)
         return [row for row in reader]
 
@@ -81,7 +81,7 @@ def write_csv(filename: str, values: List[dict]) -> None:
     :return: None
     """
     fieldnames: list = ["id", "ticker", "amount"]
-    with open(filename, "w", newline='') as writefile:
+    with open(filename, "w", newline="") as writefile:
         writer = csv.DictWriter(writefile, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(values)
@@ -95,9 +95,7 @@ def deposit(ticker: str, amount: str) -> None:
             if coin["ticker"] == ticker:
                 coin["amount"] = decimal.Decimal(coin["amount"]) + decimal.Decimal(amount)
     else:
-        portfolio.append(
-            {"ticker": ticker, "amount": amount, "id": get_coin_id(ticker)}
-        )
+        portfolio.append({"ticker": ticker, "amount": amount, "id": get_coin_id(ticker)})
 
     write_csv(PORTFOLIO_FILE, portfolio)
 
@@ -246,9 +244,7 @@ def get_rates(portfolio: List[dict]) -> List[dict]:
     :param portfolio: list of dicts for each coin in portfolio
     :return: list of dicts with the current price for each coin in portfolio
     """
-    return cg.get_price(
-        ids=[coin["id"] for coin in portfolio], vs_currencies=["usd", "brl"]
-    )
+    return cg.get_price(ids=[coin["id"] for coin in portfolio], vs_currencies=["usd", "brl"])
 
 
 def get_delta(portfolio: List[dict]) -> dict:
@@ -258,9 +254,7 @@ def get_delta(portfolio: List[dict]) -> dict:
     :param portfolio: list of dicts for each coin in portfolio
     :return: dictionary with the coin and its 24 hours variation in price
     """
-    market_data: dict = cg.get_coins_markets(
-        vs_currency="usd", ids=[coin["id"] for coin in portfolio]
-    )
+    market_data: dict = cg.get_coins_markets(vs_currency="usd", ids=[coin["id"] for coin in portfolio])
     return {coin["id"]: coin["price_change_percentage_24h"] for coin in market_data}
 
 
