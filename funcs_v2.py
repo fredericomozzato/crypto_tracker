@@ -25,7 +25,7 @@ def valid_coin(ticker: str) -> bool:
             continue
         else:
             return True
-    return False
+    sys.exit("ERROR: invalid coin")
 
 
 def valid_amount(amount: str) -> bool:
