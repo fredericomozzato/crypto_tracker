@@ -1,3 +1,9 @@
+"""
+CryptoTracker is a simple Python based portfolio tool for your CryptoCurrencies.
+By Frederico Mozzato
+"""
+
+
 import argparse
 import os
 
@@ -10,8 +16,7 @@ from funcs_v2 import (
     erase,
     reset,
     print_table,
-    refresh_values,
-    create_new_portfolio,
+    create_new_portfolio
 )
 
 
@@ -89,7 +94,6 @@ def main() -> None:
         reset()
 
     else:
-        refresh_values()
         print_table()
 
 
