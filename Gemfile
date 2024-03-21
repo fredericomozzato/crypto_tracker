@@ -68,6 +68,8 @@ group :test do
   gem 'capybara'
   gem 'rspec-rails'
   gem 'cuprite'
+  gem 'simplecov', '~> 0.22.0', require: false
 end
+
 
 
