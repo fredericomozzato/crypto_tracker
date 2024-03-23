@@ -29,6 +29,11 @@ RSpec.describe User, type: :model do
   end
 
   describe '#create' do
-    it 'creates an account associated with the user'
+    it 'creates an account associated with the user' do
+      user = create :user
+
+      expect(user.account).not_to be_nil
+      expect(Account.last.owner).to eq user
+    end
   end
 end
