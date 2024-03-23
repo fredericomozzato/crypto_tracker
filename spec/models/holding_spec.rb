@@ -21,4 +21,13 @@ RSpec.describe Holding, type: :model do
       expect(invalid_holding.errors.full_messages).to include 'Portfolio already has a holding with this coin'
     end
   end
+
+  describe '#value' do
+    it 'returns the value in USD' do
+      coin = create :coin, rate: 9.99
+      holding = build :holding, coin:, amount: 5.55
+
+      expect(holding.value).to eq 55.4445
+    end
+  end
 end
