@@ -1,0 +1,14 @@
+en:
+  activerecord:
+    models:
+      account:
+    attributes:
+      account:
+        uuid: UUID
+    errors:
+      models:
+        account:
+          attributes:
+            owner:
+              taken: "already has an account"
+      

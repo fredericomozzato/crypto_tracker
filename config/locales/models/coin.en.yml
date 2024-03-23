@@ -1,0 +1,7 @@
+en:
+  activerecord:
+    models:
+      coin:
+    attributes:
+      coin:
+        api_id: API ID
