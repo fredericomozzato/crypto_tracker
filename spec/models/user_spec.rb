@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe User, type: :model do
-  describe '#valid' do
+  describe '#valid?' do
     it 'false without email' do
       user = build :user, email: ''
 

@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe Coin, type: :model do
-  describe '#valid' do
+  describe '#valid?' do
     it 'false without name' do
       coin = build :coin, name: ''
 

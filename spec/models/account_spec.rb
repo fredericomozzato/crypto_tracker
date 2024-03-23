@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe Account, type: :model do
-  describe '#valid' do
+  describe '#valid?' do
     it 'false without UUID' do
       user = create :user
       acc = Account.new owner: user
