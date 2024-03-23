@@ -7,6 +7,7 @@ gem 'dotenv', groups: %i[development test]
 gem 'bootsnap', require: false
 gem 'cssbundling-rails'
 gem 'devise', '~> 4.9'
+gem 'faraday', '~> 2.9'
 gem 'foreman', '~> 0.87.2'
 gem 'jbuilder'
 gem 'jsbundling-rails'
@@ -36,3 +37,4 @@ group :test do
   gem 'rspec-rails'
   gem 'simplecov', '~> 0.22.0', require: false
 end
+
