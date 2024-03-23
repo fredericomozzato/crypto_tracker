@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2024_03_23_175213) do
+ActiveRecord::Schema[7.1].define(version: 2024_03_23_180043) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -38,6 +38,17 @@ ActiveRecord::Schema[7.1].define(version: 2024_03_23_175213) do
     t.index ["ticker"], name: "unique_coin_ticker", unique: true
   end
 
+  create_table "holdings", force: :cascade do |t|
+    t.bigint "portfolio_id", null: false
+    t.bigint "coin_id", null: false
+    t.decimal "amount", precision: 16, scale: 8, default: "0.0"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["coin_id"], name: "index_holdings_on_coin_id"
+    t.index ["portfolio_id", "coin_id"], name: "portfolio_coin_id", unique: true
+    t.index ["portfolio_id"], name: "index_holdings_on_portfolio_id"
+  end
+
   create_table "portfolios", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "name", null: false
@@ -59,5 +70,7 @@ ActiveRecord::Schema[7.1].define(version: 2024_03_23_175213) do
   end
 
   add_foreign_key "accounts", "users", column: "owner_id"
+  add_foreign_key "holdings", "coins"
+  add_foreign_key "holdings", "portfolios"
   add_foreign_key "portfolios", "accounts"
 end

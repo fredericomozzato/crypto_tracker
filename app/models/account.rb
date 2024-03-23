@@ -1,6 +1,7 @@
 class Account < ApplicationRecord
   belongs_to :owner, class_name: 'User'
   has_many :portfolios, dependent: :destroy
+  has_many :holdings, through: :portfolio
 
   validates :uuid, presence: true
   validates :owner, :uuid, uniqueness: true
