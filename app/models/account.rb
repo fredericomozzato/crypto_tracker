@@ -8,6 +8,10 @@ class Account < ApplicationRecord
 
   before_validation :generate_uuid, on: :create
 
+  def net_worth
+    portfolios.map(&:total_balance).sum
+  end
+
   private
 
   def generate_uuid
