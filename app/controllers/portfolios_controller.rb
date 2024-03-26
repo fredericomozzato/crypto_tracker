@@ -1,7 +1,9 @@
 class PortfoliosController < ApplicationController
-  before_action :set_account, only: %i[create]
+  before_action :set_account, only: %i[create index]
 
-  def index; end
+  def index
+    @portfolios = @account.portfolios
+  end
 
   def create
     @portfolio = @account.portfolios.build(portfolio_params)
