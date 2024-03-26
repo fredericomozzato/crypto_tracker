@@ -40,4 +40,55 @@ RSpec.describe '/portfolios', type: :request do
       end
     end
   end
+
+  describe 'GET /portfolios' do
+    context 'authenticated' do
+      it 'returns 200 OK' do
+        user = create :user
+
+        login_as user, scope: :user
+        get portfolios_path
+
+        expect(response).to have_http_status :ok
+      end
+    end
+
+    context 'not authenticated' do
+      it 'redirects to login page' do
+        get portfolios_path
+
+        expect(response).to redirect_to new_user_session_path
+      end
+    end
+  end
+
+  describe 'DELETE /portfolios/:id' do
+    context 'authenticated' do
+      it 'deletes a specific portfolio' do
+        user = create :user
+        portfolio1 = create :portfolio, name: 'P1', account: user.account
+        portfolio2 = create :portfolio, name: 'P2', account: user.account
+
+        login_as user, scope: :user
+        delete portfolio_path(portfolio1)
+
+        expect(response).to redirect_to portfolios_path
+        expect(flash[:notice]).to eq 'Portfolio deleted successfully'
+        expect(user.portfolios.count).to eq 1
+        expect(user.portfolios).to include portfolio2
+        expect(user.portfolios).not_to include portfolio1
+      end
+    end
+
+    context 'not authenticated' do
+      it 'redirects to login page and doesn\'t delete portfolio' do
+        portfolio = create :portfolio
+
+        delete portfolio_path(portfolio)
+
+        expect(response).to redirect_to new_user_session_path
+        expect(Portfolio.last).to eq portfolio
+      end
+    end
+  end
 end

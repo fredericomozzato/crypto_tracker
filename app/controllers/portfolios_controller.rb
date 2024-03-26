@@ -1,6 +1,8 @@
 class PortfoliosController < ApplicationController
   before_action :set_account, only: %i[create]
 
+  def index; end
+
   def create
     @portfolio = @account.portfolios.build(portfolio_params)
 
@@ -9,6 +11,12 @@ class PortfoliosController < ApplicationController
     else
       flash.now[:alert] = t '.fail'
     end
+  end
+
+  def destroy
+    @portfolio = Portfolio.find params[:id]
+    @portfolio.destroy
+    redirect_to portfolios_path, notice: t('.success')
   end
 
   private
