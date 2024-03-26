@@ -1,0 +1,5 @@
+en:
+  portfolios:
+    create:
+      success: Portfolio successfully created
+      fail: Unable to create Portfolio
