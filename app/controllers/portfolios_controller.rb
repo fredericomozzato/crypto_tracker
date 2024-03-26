@@ -9,10 +9,14 @@ class PortfoliosController < ApplicationController
     @portfolio = @account.portfolios.build(portfolio_params)
 
     if @portfolio.save
-      redirect_to portfolios_path, notice: t('.success')
+      redirect_to @portfolio, notice: t('.success')
     else
       flash.now[:alert] = t '.fail'
     end
+  end
+
+  def show
+    @portfolio = Portfolio.find params[:id]
   end
 
   def destroy

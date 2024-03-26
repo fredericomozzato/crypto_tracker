@@ -10,7 +10,7 @@ RSpec.describe '/portfolios', type: :request do
         login_as user, scope: :user
         post(portfolios_path, params:)
 
-        expect(response).to redirect_to portfolios_path
+        expect(response).to redirect_to [Portfolio.last]
         expect(flash[:notice]).to eq 'Portfolio successfully created'
         expect(Portfolio.count).to eq 1
         expect(Portfolio.last.name).to eq 'Test Portfolio'
