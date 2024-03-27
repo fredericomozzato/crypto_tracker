@@ -1,4 +1,8 @@
 <section>
+  <div>
+    <%= link_to 'New Holding', new_portfolio_holding_path(@portfolio) %>
+  </div>
+  
   <h1><%= @portfolio.name %></h1>
   
   <table>
@@ -7,9 +11,18 @@
         <th>Asset</th>
         <th>Amount</th>
         <th>Rate</th>
+        <th>USD</th>
       </trow>
     </thead>
     <tbody>
+      <% @holdings.each do |holding| %>
+        <trow>
+          <td><%= holding.ticker %></td>
+          <td><%= holding.amount %></td>
+          <td><%= holding.rate.round 2 %></td>
+          <td><%= holding.value.round 2 %></td>
+        </trow>
+      <% end %>
     </tbody>
   </table>
 </section>
