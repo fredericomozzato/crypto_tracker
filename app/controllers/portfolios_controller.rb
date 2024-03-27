@@ -16,7 +16,8 @@ class PortfoliosController < ApplicationController
   end
 
   def show
-    @portfolio = Portfolio.find params[:id]
+    @portfolio = Portfolio.includes(:holdings).find params[:id]
+    @holdings = @portfolio.holdings
   end
 
   def destroy
