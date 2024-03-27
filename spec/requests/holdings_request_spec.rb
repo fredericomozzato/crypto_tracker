@@ -4,7 +4,7 @@ RSpec.describe '/holdings', type: :request do
   describe 'POST /portfolio/holdings' do
     context 'authenticated' do
       it 'creates a holding associated with the portfolio' do
-        coin = create :coin, name: 'Coin', rate: 9.99
+        coin = create :coin, name: 'Coin', ticker: 'COI', rate: 9.99
         user = create :user
         portfolio = create :portfolio, account: user.account
         params = { holding: { coin_id: coin.id, portfolio_id: portfolio.id } }
@@ -12,6 +12,8 @@ RSpec.describe '/holdings', type: :request do
         login_as user, scope: :user
         post(portfolio_holdings_path(portfolio), params:)
 
+        expect(response).to redirect_to portfolio_path(portfolio)
+        expect(flash[:notice]).to eq 'COI added to portfolio'
         expect(Holding.count).to eq 1
         expect(portfolio.holdings.count).to eq 1
         expect(portfolio.holdings.last.coin).to eq coin
@@ -40,6 +42,7 @@ RSpec.describe '/holdings', type: :request do
         login_as user, scope: :user
         post(portfolio_holdings_path(portfolio), params:)
 
+        expect(flash[:alert]).to eq 'Can\'t add coin to portfolio'
         expect(portfolio.holdings.count).to eq 1
         expect(portfolio.holdings.last).to eq holding
       end

@@ -6,3 +6,7 @@ en:
           attributes:
             portfolio:
               taken: already has a holding with this coin
+  holdings:
+    create:
+      success: '%{ticker} added to portfolio'
+      fail: Can't add coin to portfolio
