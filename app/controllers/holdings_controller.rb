@@ -12,6 +12,7 @@ class HoldingsController < ApplicationController
       redirect_to @portfolio, notice: t('.success', ticker: @holding.ticker)
     else
       flash.now[:alert] = t '.fail'
+      render :new, status: :unprocessable_entity
     end
   end
 

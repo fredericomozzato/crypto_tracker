@@ -17,7 +17,7 @@ class PortfoliosController < ApplicationController
 
   def show
     @portfolio = Portfolio.includes(:holdings).find params[:id]
-    @holdings = @portfolio.holdings
+    @holdings = @portfolio.holdings.sort_by(&:value).reverse
   end
 
   def destroy

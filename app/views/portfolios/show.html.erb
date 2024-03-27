@@ -15,14 +15,7 @@
       </trow>
     </thead>
     <tbody>
-      <% @holdings.each do |holding| %>
-        <trow>
-          <td><%= holding.ticker %></td>
-          <td><%= holding.amount %></td>
-          <td><%= holding.rate.round 2 %></td>
-          <td><%= holding.value.round 2 %></td>
-        </trow>
-      <% end %>
+      <%= render @holdings %>
     </tbody>
   </table>
 </section>
