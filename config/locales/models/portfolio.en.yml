@@ -1,0 +1,7 @@
+en:
+  portfolios:
+    create:
+      success: Portfolio successfully created
+      fail: Unable to create Portfolio
+    destroy:
+      success: Portfolio deleted successfully
