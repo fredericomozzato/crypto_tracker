@@ -8,9 +8,7 @@ Crypto currency portfolio manager built with Ruby on Rails.
 
 I've always wanted a simple tool to manage my crypto currency portfolio, so I decided to make my own! 
 
-Crypto Tracker allows users to create accounts and multiple portfolios to track crypto assets. The application uses the CoinGecko API underneath to offer near real time rates, while supporting the top 100 coins by market cap.
-
-This app is currently optimised to be used in a desktop's browser. Maybe in the future I'll add mobile compatibility, but for now, it may not work properly in very small screens.
+Crypto Tracker allows users to create accounts and multiple portfolios to track crypto assets. The application uses the [CoinGecko API](https://www.coingecko.com/en/api) underneath to offer near real time rates, while supporting the top 100 coins by market cap.
 
 ## Project setup
 
@@ -21,7 +19,7 @@ POSTGRES_USER=<your_user>
 POSTGRES_PASSWORD=<your_password>
 ```
 
-Install all the gems with
+Next, install all the gems with
 
 ```
 $ bundle install
@@ -33,6 +31,28 @@ To run the application you execute
 $ bin/dev
 ```
 
-**IMPORTANT:** when running the application for the first time you should also run `rails db:prepare` after the application is up. This will ensure that all the tables are created and the migrations are applied.
+**IMPORTANT:** before starting the application for the first time you should run the services with compose and then `rails db:prepare` after the db service is up. This will ensure that all the tables are created and the migrations are applied.
+
+### Seeds
+
+The application uses seeds. There's a single user that you can try out with the following credentials for login:
+
+- Email: user@email.com
+- Password: 123456
+
+The seeds file will also import the top 100 coins by market cap from the Coin Gecko API, making them available to use in the application.
+
+### Importing coins
+
+There's a rake task built for admin purposes that can be run to manually import coins:
+
+```
+$ rake coins:import
+```
+
+This task will run the same service for importing coins as the seeds file do. If there are new coins in the top 100 by market cap it'll import them. It won't remove any coin and it won't duplicate existing or overwrite existing coins. It only imports new coins that are not yet present in the database.
+
 
 ## Running tests
+
+The tests run locally, but make sure that all services are up with with the `docker compose` command. With the database service up you can execute `rspec` from the application's root to run the test suite.

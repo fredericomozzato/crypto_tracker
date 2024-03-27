@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2024_03_23_180043) do
+ActiveRecord::Schema[7.1].define(version: 2024_03_27_120226) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -32,6 +32,7 @@ ActiveRecord::Schema[7.1].define(version: 2024_03_23_180043) do
     t.decimal "rate", precision: 16, scale: 8, default: "0.0"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "active", default: true, null: false
     t.index ["api_id"], name: "unique_coin_api_id", unique: true
     t.index ["icon"], name: "unique_coin_icon", unique: true
     t.index ["name"], name: "unique_coin_name", unique: true
