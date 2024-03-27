@@ -3,7 +3,7 @@ class CoinService
     res = JSON.parse GeckoService.top_markets, symbolize_names: true
 
     res.each do |r|
-      Coin.create name: r[:name], api_id: r[:id], ticker: r[:symbol],
+      Coin.create name: r[:name], api_id: r[:id], ticker: r[:symbol].upcase,
                   icon: r[:image], rate: r[:current_price], active: true
     end
   end
