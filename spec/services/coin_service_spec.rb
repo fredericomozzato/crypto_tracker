@@ -36,21 +36,21 @@ RSpec.describe CoinService do
 
   describe '.refresh_rates' do
     it 'Updates the rate of every Coin in the database' do
-      btc = create :coin, api_id: 'bitcoin', rate: 0.0
-      eth = create :coin, api_id: 'ethereum', rate: 0.0
-      usdt = create :coin, api_id: 'tether', rate: 0.0
-      bnb = create :coin, api_id: 'binancecoin', rate: 0.0
-      sol = create :coin, api_id: 'solana', rate: 0.0
+      btc  = create :coin, api_id: 'bitcoin',     rate: 0.0
+      eth  = create :coin, api_id: 'ethereum',    rate: 0.0
+      usdt = create :coin, api_id: 'tether',      rate: 0.0
+      bnb  = create :coin, api_id: 'binancecoin', rate: 0.0
+      sol  = create :coin, api_id: 'solana',      rate: 0.0
       prices_json = File.read(File.join(__dir__, '..', 'support', 'json', 'coin_prices.json'))
 
       allow(GeckoService).to receive(:prices).and_return prices_json
       CoinService.refresh_rates
 
-      expect(btc.reload.rate).to eq 68_650.94737118
-      expect(eth.reload.rate).to eq 3_510.27391192
+      expect(btc.reload.rate).to  eq 68_650.94737118
+      expect(eth.reload.rate).to  eq 3_510.27391192
       expect(usdt.reload.rate).to eq 0.99531325
-      expect(bnb.reload.rate).to eq 565.41173079
-      expect(sol.reload.rate).to eq 181.80816183
+      expect(bnb.reload.rate).to  eq 565.41173079
+      expect(sol.reload.rate).to  eq 181.80816183
     end
   end
 end
