@@ -10,4 +10,14 @@ class Holding < ApplicationRecord
   def value
     amount * coin.rate
   end
+
+  def deposit(amount)
+    self.amount += amount if amount.positive?
+    save
+  end
+
+  def withdraw(amount)
+    self.amount -= amount if amount.positive? && amount <= self.amount
+    save
+  end
 end
