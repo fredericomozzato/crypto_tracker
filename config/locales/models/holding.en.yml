@@ -10,3 +10,5 @@ en:
     create:
       success: '%{ticker} added to portfolio'
       fail: Can't add coin to portfolio
+    update:
+      success: 'Deposited %{amount} %{ticker} to portfolio'

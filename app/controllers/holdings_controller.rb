@@ -15,6 +15,15 @@ class HoldingsController < ApplicationController
     end
   end
 
+  def update
+    @holding = Holding.find(params.dig(:holding, :id))
+    @holding.deposit BigDecimal(params.dig(:holding, :amount))
+    redirect_to @holding.portfolio,
+                notice: t('.success',
+                          amount: params.dig(:holding, :amount),
+                          ticker: @holding.ticker)
+  end
+
   private
 
   def set_portfolio

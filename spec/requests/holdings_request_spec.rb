@@ -48,7 +48,7 @@ RSpec.describe '/holdings', type: :request do
       end
     end
 
-    context 'not authenticated' do
+    context 'unauthenticated' do
       it 'redirects to login page and doesn\'t create holding' do
         coin = create :coin
         portfolio = create :portfolio
@@ -60,5 +60,42 @@ RSpec.describe '/holdings', type: :request do
         expect(portfolio.holdings.count).to eq 0
       end
     end
+  end
+
+  describe 'PATCH /holding/:id' do
+    context 'authenticated' do
+      it 'Deposit a positive amount with success' do
+        coin = create :coin, ticker: 'COI'
+        portfolio = create :portfolio
+        holding = create :holding, portfolio:, coin:, amount: 10.0
+        deposit_amount = 5.0
+        params = { holding: { id: holding.id,
+                              operation: :deposit,
+                              amount: deposit_amount } }
+
+        login_as portfolio.owner, scope: :user
+        patch(holding_path(holding), params:)
+
+        expect(response).to redirect_to portfolio_path(portfolio)
+        expect(flash[:notice]).to eq 'Deposited 5.0 COI to portfolio'
+        expect(holding.reload.amount).to eq 15.0
+      end
+
+      it 'Can\'t deposit negative amount' do
+        portfolio = create :portfolio
+        holding = create :holding, portfolio:, amount: 5.0
+        deposit_amount = -1.0
+        params = { holding: { id: holding.id,
+                              operation: :deposit,
+                              amount: deposit_amount } }
+
+        login_as portfolio.owner, scope: :user
+        patch(holding_path(holding), params:)
+
+        expect(holding.amount).to eq 5.0
+      end
+    end
+
+    context 'unauthenticated'
   end
 end

@@ -8,4 +8,6 @@ Rails.application.routes.draw do
   resources :portfolios, only: %i[index create show destroy] do
     resources :holdings, only: %i[new create]
   end
+
+  resources :holdings, only: %i[update]
 end
