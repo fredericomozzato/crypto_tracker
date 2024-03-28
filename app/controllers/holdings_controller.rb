@@ -1,9 +1,8 @@
 class HoldingsController < ApplicationController
-  before_action :set_portfolio, only: %i[new create]
+  before_action :set_portfolio, :set_coins, only: %i[new create]
 
   def new
     @holding = @portfolio.holdings.build
-    @coins = Coin.all.order(:ticker)
   end
 
   def create
@@ -20,6 +19,10 @@ class HoldingsController < ApplicationController
 
   def set_portfolio
     @portfolio = Portfolio.find params[:portfolio_id]
+  end
+
+  def set_coins
+    @coins = Coin.all.order(:ticker)
   end
 
   def holding_params
