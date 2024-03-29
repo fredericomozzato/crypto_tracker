@@ -1,0 +1,21 @@
+<%= link_to 'Back', @portfolio %>
+
+<section>
+  <h1>New holding</h1>
+  
+  <%= form_with model: [@portfolio, @holding] do |f| %>
+    <div>
+      <%= f.collection_select :coin_id, 
+                              @coins, 
+                              :id, 
+                              :ticker,
+                              include_blank: 'Coin' %>
+      <%= f.label :amount %>
+      <%= f.number_field :amount, 
+                         step: 0.00000001 %>
+    </div>
+    <div>
+      <%= f.submit 'Save' %>
+    </div>
+  <% end %>
+</section>

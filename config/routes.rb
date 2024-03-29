@@ -5,5 +5,9 @@ Rails.application.routes.draw do
 
   root 'pages#index'
 
-  resources :portfolios, only: %i[index create show destroy]
+  resources :portfolios, only: %i[index create show destroy] do
+    resources :holdings, only: %i[new create]
+  end
+
+  resources :holdings, only: %i[edit update destroy]
 end

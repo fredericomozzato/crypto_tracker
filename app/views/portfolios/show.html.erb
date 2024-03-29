@@ -1,15 +1,28 @@
-<section>
+<%= link_to 'Back', portfolios_path %>
+
+<section>  
   <h1><%= @portfolio.name %></h1>
   
-  <table>
+  <h3>
+    Total Balance: <%= number_to_currency @portfolio.total_balance %>
+  </h3>
+  
+  <div>
+    <%= link_to 'New Holding', new_portfolio_holding_path(@portfolio) %>
+  </div>
+  
+  <table class="table-auto border-collapse border">
     <thead>
       <trow>
-        <th>Asset</th>
-        <th>Amount</th>
-        <th>Rate</th>
+        <th class="border">Asset</th>
+        <th class="border">Rate</th>
+        <th class="border">Amount</th>
+        <th class="border">USD</th>
+        <th class="border"></th>
       </trow>
     </thead>
     <tbody>
+      <%= render @holdings %>
     </tbody>
   </table>
 </section>

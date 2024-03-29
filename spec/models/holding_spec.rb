@@ -30,4 +30,56 @@ RSpec.describe Holding, type: :model do
       expect(holding.value).to eq 55.4445
     end
   end
+
+  describe '#deposit' do
+    it 'Adds amount to the holding' do
+      holding = build :holding, amount: 10.0
+
+      holding.deposit 5.55
+
+      expect(holding.amount).to eq 15.55
+    end
+
+    it 'Doesn\'t accept negative amount' do
+      holding = create :holding, amount: 5.0
+
+      holding.deposit(-1)
+
+      expect(holding.amount).to eq 5.0
+    end
+  end
+
+  describe '#withdraw' do
+    it 'Withdraws amount from holding' do
+      holding = build :holding, amount: 10.0
+
+      holding.withdraw 9.99
+
+      expect(holding.amount).to eq 0.01
+    end
+
+    it 'Doesn\'t accept negative values' do
+      holding = build :holding, amount: 5.0
+
+      holding.withdraw(-2.5)
+
+      expect(holding.amount).to eq 5.0
+    end
+
+    it 'Doesn\'t accept amount greater than the holding\'s amount' do
+      holding = build :holding, amount: 10.0
+
+      holding.withdraw 10.1
+
+      expect(holding.amount).to eq 10.0
+    end
+
+    it 'Can withdraw the exact amount' do
+      holding = build :holding, amount: 12.3456789
+
+      holding.withdraw 12.3456789
+
+      expect(holding.amount).to eq 0.0
+    end
+  end
 end
