@@ -202,4 +202,24 @@ RSpec.describe '/holdings', type: :request do
       end
     end
   end
+
+  describe 'DELETE /holding/:id' do
+    context 'authenticated' do
+      it 'Deletes holding from portfolio' do
+        coin_a = create :coin, ticker: 'CNA'
+        coin_b = create :coin, ticker: 'CNB'
+        portfolio = create :portfolio
+        holding_a = create :holding, portfolio:, coin: coin_a
+        holding_b = create :holding, portfolio:, coin: coin_b
+
+        login_as portfolio.owner, scope: :user
+        delete(holding_path(holding_a))
+
+        expect(portfolio.holdings).not_to include holding_a
+        expect(portfolio.holdings).to include holding_b
+        expect(response).to redirect_to portfolio_path(portfolio)
+        expect(flash[:notice]).to eq 'Removed CNA from portfolio'
+      end
+    end
+  end
 end

@@ -1,6 +1,6 @@
 class HoldingsController < ApplicationController
   before_action :set_portfolio, :set_coins, only: %i[new create]
-  before_action :set_holding, only: %i[edit update]
+  before_action :set_holding, only: %i[edit update destroy]
 
   def new
     @holding = @portfolio.holdings.build
@@ -26,6 +26,12 @@ class HoldingsController < ApplicationController
                 notice: t(".success_#{params.dig(:holding, :operation)}",
                           amount: params.dig(:holding, :amount),
                           ticker: @holding.ticker)
+  end
+
+  def destroy
+    @holding.destroy
+    redirect_to @holding.portfolio,
+                notice: t('.success', ticker: @holding.ticker)
   end
 
   private
