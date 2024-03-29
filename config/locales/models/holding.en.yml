@@ -16,5 +16,5 @@ en:
       success_update: 'Updated %{ticker} to %{amount}'
     destroy:
       success: 'Removed %{ticker} from portfolio'
-    delete_confirm: 'Delete %{ticker} from portfolio?'
+    delete_confirm: "Delete %{ticker} from portfolio? This action can't be undone"
   
