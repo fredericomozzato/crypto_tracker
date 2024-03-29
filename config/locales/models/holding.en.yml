@@ -11,4 +11,6 @@ en:
       success: '%{ticker} added to portfolio'
       fail: Can't add coin to portfolio
     update:
-      success: 'Deposited %{amount} %{ticker} to portfolio'
+      success_deposit: 'Deposited %{amount} %{ticker} to portfolio'
+      success_withdraw: 'Withdrew %{amount} %{ticker} from portfolio'
+      success_update: 'Updated %{ticker} to %{amount}'

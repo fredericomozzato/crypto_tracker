@@ -64,13 +64,13 @@ RSpec.describe '/holdings', type: :request do
 
   describe 'PATCH /holding/:id' do
     context 'authenticated' do
-      it 'Deposit a positive amount with success' do
+      it 'Deposit valid amount with success' do
         coin = create :coin, ticker: 'COI'
         portfolio = create :portfolio
         holding = create :holding, portfolio:, coin:, amount: 10.0
         deposit_amount = 5.0
         params = { holding: { id: holding.id,
-                              operation: :deposit,
+                              operation: 'deposit',
                               amount: deposit_amount } }
 
         login_as portfolio.owner, scope: :user
@@ -86,7 +86,7 @@ RSpec.describe '/holdings', type: :request do
         holding = create :holding, portfolio:, amount: 5.0
         deposit_amount = -1.0
         params = { holding: { id: holding.id,
-                              operation: :deposit,
+                              operation: 'deposit',
                               amount: deposit_amount } }
 
         login_as portfolio.owner, scope: :user
@@ -94,8 +94,112 @@ RSpec.describe '/holdings', type: :request do
 
         expect(holding.amount).to eq 5.0
       end
+
+      it 'Withdraws valid amount with success' do
+        coin = create :coin, ticker: 'COI'
+        portfolio = create :portfolio
+        holding = create :holding, portfolio:, coin:, amount: 10.0
+        withdraw_amount = 5.5
+        params = { holding: { id: holding.id,
+                              operation: 'withdraw',
+                              amount: withdraw_amount } }
+
+        login_as portfolio.owner, scope: :user
+        patch(holding_path(holding), params:)
+
+        expect(response).to redirect_to portfolio_path(portfolio)
+        expect(flash[:notice]).to eq 'Withdrew 5.5 COI from portfolio'
+        expect(holding.reload.amount).to eq 4.5
+      end
+
+      it 'Can\'t withdraw negative amount' do
+        portfolio = create :portfolio
+        holding = create :holding, portfolio:, amount: 10.0
+        withdraw_amount = -5.5
+        params = { holding: { id: holding.id,
+                              operation: 'withdraw',
+                              amount: withdraw_amount } }
+
+        login_as portfolio.owner, scope: :user
+        patch(holding_path(holding), params:)
+
+        expect(holding.reload.amount).to eq 10
+      end
+
+      it 'Can\'t withdraw more than the holding\'s amount' do
+        portfolio = create :portfolio
+        holding = create :holding, portfolio:, amount: 10.0
+        withdraw_amount = 10.1
+        params = { holding: { id: holding.id,
+                              operation: 'withdraw',
+                              amount: withdraw_amount } }
+
+        login_as portfolio.owner, scope: :user
+        patch(holding_path(holding), params:)
+
+        expect(holding.reload.amount).to eq 10
+      end
+
+      it 'Updates holding\'s amount with success' do
+        coin = create :coin, ticker: 'COI'
+        portfolio = create :portfolio
+        holding = create :holding, portfolio:, coin:, amount: 10.0
+        new_amount = 5.5
+        params = { holding: { id: holding.id,
+                              operation: 'update',
+                              amount: new_amount } }
+
+        login_as portfolio.owner, scope: :user
+        patch(holding_path(holding), params:)
+
+        expect(response).to redirect_to portfolio_path(portfolio)
+        expect(flash[:notice]).to eq 'Updated COI to 5.5'
+        expect(holding.reload.amount).to eq 5.5
+      end
+
+      it 'Update holding amount to 0' do
+        portfolio = create :portfolio
+        holding = create :holding, portfolio:, amount: 10.0
+        new_amount = 0.0
+        params = { holding: { id: holding.id,
+                              operation: 'update',
+                              amount: new_amount } }
+
+        login_as portfolio.owner, scope: :user
+        patch(holding_path(holding), params:)
+
+        expect(holding.reload.amount).to eq 0.0
+      end
+
+      it 'Can\'t update holding to negative amount' do
+        portfolio = create :portfolio
+        holding = create :holding, portfolio:, amount: 5.5
+        new_amount = -0.1
+        params = { holding: { id: holding.id,
+                              operation: 'update',
+                              amount: new_amount } }
+
+        login_as portfolio.owner, scope: :user
+        patch(holding_path(holding), params:)
+
+        expect(holding.reload.amount).to eq 5.5
+      end
     end
 
-    context 'unauthenticated'
+    context 'unauthenticated' do
+      it 'Redirects to login page and doesn\'t modify holding' do
+        portfolio = create :portfolio
+        holding = create :holding, portfolio:, amount: 5.0
+        deposit_amount = -1.0
+        params = { holding: { id: holding.id,
+                              operation: 'deposit',
+                              amount: deposit_amount } }
+
+        patch(holding_path(holding), params:)
+
+        expect(response).to redirect_to new_user_session_path
+        expect(holding.amount).to eq 5.0
+      end
+    end
   end
 end
