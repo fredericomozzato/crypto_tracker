@@ -1,0 +1,30 @@
+<%= link_to 'Back', @holding.portfolio %>
+
+<section>
+  <h1>Edit Holding</h1>
+  
+  <h3><%= @holding.ticker %> <%= @holding.amount %></h3>
+  
+  <%= form_with model: @holding do |f| %>
+    <div>
+      <%= f.radio_button :operation,
+                         'deposit',
+                         checked: true %>
+      <%= f.label :operation_deposit,
+                  'Deposit' %>
+      <%= f.radio_button :operation,
+                         'withdraw' %>
+      <%= f.label :operation_withdraw,
+                  'Withdraw' %>
+      <%= f.radio_button :operation,
+                         :update %>
+      <%= f.label :operation_update,
+                  'Update' %>
+    </div>
+    <%= f.label :amount %>
+    <%= f.number_field :amount, 
+                       value: 0.0,
+                       step: 0.00000001 %>
+    <%= f.submit 'Save' %>
+  <% end %>
+</section>

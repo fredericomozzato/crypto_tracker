@@ -1,6 +1,6 @@
 class HoldingsController < ApplicationController
   before_action :set_portfolio, :set_coins, only: %i[new create]
-  before_action :set_holding, only: %i[update]
+  before_action :set_holding, only: %i[edit update]
 
   def new
     @holding = @portfolio.holdings.build
@@ -16,13 +16,16 @@ class HoldingsController < ApplicationController
     end
   end
 
+  def edit; end
+
   def update
     forward_operation
 
     @holding.save
-    redirect_to @holding.portfolio, notice: t(".success_#{params[:holding][:operation]}",
-                                              amount: params.dig(:holding, :amount),
-                                              ticker: @holding.ticker)
+    redirect_to @holding.portfolio,
+                notice: t(".success_#{params.dig(:holding, :operation)}",
+                          amount: params.dig(:holding, :amount),
+                          ticker: @holding.ticker)
   end
 
   private
@@ -36,7 +39,7 @@ class HoldingsController < ApplicationController
   end
 
   def set_holding
-    @holding = Holding.find(params.dig(:holding, :id))
+    @holding = Holding.find params[:id]
   end
 
   def holding_params
@@ -44,7 +47,7 @@ class HoldingsController < ApplicationController
   end
 
   def forward_operation
-    case params.dig :holding, :operation
+    case params.dig(:holding, :operation)
     in 'deposit'  then @holding.deposit  BigDecimal(params.dig(:holding, :amount))
     in 'withdraw' then @holding.withdraw BigDecimal(params.dig(:holding, :amount))
     in 'update'   then @holding.amount = BigDecimal(params.dig(:holding, :amount))

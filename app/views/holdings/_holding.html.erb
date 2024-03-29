@@ -1,6 +1,17 @@
 <tr>
-  <td><%= holding.ticker %></td>
-  <td><%= holding.amount %></td>
-  <td><%= holding.rate.round 2 %></td>
-  <td><%= holding.value.round 2 %></td>
+  <td class="border p-1">
+    <%= holding.ticker %>
+  </td>
+  <td class="border p-1">
+    <%= number_to_currency holding.rate.round(2) %>
+  </td>
+  <td class="border p-1">
+    <%= holding.amount %>
+  </td>
+  <td class="border p-1">
+    <%= number_to_currency holding.value.round(2) %>
+  </td>
+  <td class="border p-1">
+    <%= link_to 'Manage', [:edit, holding] %>
+  </td>
 </tr>

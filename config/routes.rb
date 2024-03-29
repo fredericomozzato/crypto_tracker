@@ -9,5 +9,5 @@ Rails.application.routes.draw do
     resources :holdings, only: %i[new create]
   end
 
-  resources :holdings, only: %i[update]
+  resources :holdings, only: %i[edit update]
 end
