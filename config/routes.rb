@@ -3,7 +3,9 @@ Rails.application.routes.draw do
 
   get 'up' => 'rails/health#show', as: :rails_health_check
 
-  root 'portfolios#index'
+  root 'dashboard#show'
+
+  get '/dashboard', to: 'dashboard#show'
 
   resources :portfolios, only: %i[index new create show edit destroy] do
     resources :holdings, only: %i[new create]
