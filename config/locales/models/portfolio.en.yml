@@ -5,3 +5,4 @@ en:
       fail: Unable to create Portfolio
     destroy:
       success: Portfolio deleted successfully
+    unauthorized: Not found

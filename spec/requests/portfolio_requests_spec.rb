@@ -29,7 +29,7 @@ RSpec.describe '/portfolios', type: :request do
       end
     end
 
-    context 'not authenticated' do
+    context 'unauthenticated' do
       it 'doesn\'t create Portfolio and is redirected to the login page' do
         params = { portfolio: { name: 'Test Portfolio' } }
 
@@ -53,7 +53,7 @@ RSpec.describe '/portfolios', type: :request do
       end
     end
 
-    context 'not authenticated' do
+    context 'unauthenticated' do
       it 'redirects to login page' do
         get portfolios_path
 
@@ -62,8 +62,46 @@ RSpec.describe '/portfolios', type: :request do
     end
   end
 
+  describe 'GET /portfolios/:id' do
+    context 'authenticated and authorized' do
+      it 'returns 200 OK' do
+        user = create :user
+        portfolio = create :portfolio, account: user.account
+
+        login_as user, scope: :user
+        get portfolio_path(portfolio)
+
+        expect(response).to have_http_status :ok
+      end
+    end
+
+    context 'authenticated and unauthorized' do
+      it 'redirects to root path' do
+        user = create :user
+        portfolio = create :portfolio, account: user.account
+        evil_user = create :user
+
+        login_as evil_user, scope: :user
+        get portfolio_path(portfolio)
+
+        expect(response).to redirect_to root_path
+        expect(flash[:alert]).to eq 'Not found'
+      end
+    end
+
+    context 'unauthenticated' do
+      it 'redirects to login page' do
+        portfolio = create :portfolio
+
+        get portfolio_path(portfolio)
+
+        expect(response).to redirect_to new_user_session_path
+      end
+    end
+  end
+
   describe 'DELETE /portfolios/:id' do
-    context 'authenticated' do
+    context 'authenticated and authorized' do
       it 'deletes a specific portfolio' do
         user = create :user
         portfolio1 = create :portfolio, name: 'P1', account: user.account
@@ -80,7 +118,22 @@ RSpec.describe '/portfolios', type: :request do
       end
     end
 
-    context 'not authenticated' do
+    context 'authenticated and unauthorized' do
+      it 'redirects to root path' do
+        user = create :user
+        portfolio = create :portfolio, account: user.account
+        evil_user = create :user
+
+        login_as evil_user, scope: :user
+        delete portfolio_path(portfolio)
+
+        expect(user.portfolios.last).to eq portfolio
+        expect(response).to redirect_to root_path
+        expect(flash[:alert]).to eq 'Not found'
+      end
+    end
+
+    context 'unauthenticated' do
       it 'redirects to login page and doesn\'t delete portfolio' do
         portfolio = create :portfolio
 
