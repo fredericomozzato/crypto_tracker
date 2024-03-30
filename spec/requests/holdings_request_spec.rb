@@ -15,7 +15,7 @@ RSpec.describe '/holdings', type: :request do
         expect(response).to redirect_to portfolio_path(portfolio)
         expect(flash[:notice]).to eq 'COI added to portfolio'
         expect(Holding.count).to eq 1
-        expect(portfolio.holdings.count).to eq 1
+        expect(portfolio.reload.holdings.count).to eq 1
         expect(portfolio.holdings.last.coin).to eq coin
         expect(portfolio.holdings.last.amount).to eq 0.0
       end
@@ -29,7 +29,7 @@ RSpec.describe '/holdings', type: :request do
         login_as user, scope: :user
         post(portfolio_holdings_path(portfolio), params:)
 
-        expect(portfolio.holdings.last.amount).to eq 10.0
+        expect(portfolio.reload.holdings.last.amount).to eq 10.0
       end
 
       it 'can\'t create a holding if portfolio already has one with the same coin' do
@@ -43,8 +43,8 @@ RSpec.describe '/holdings', type: :request do
         post(portfolio_holdings_path(portfolio), params:)
 
         expect(flash[:alert]).to eq 'Can\'t add coin to portfolio'
-        expect(portfolio.holdings.count).to eq 1
-        expect(portfolio.holdings.last).to eq holding
+        expect(portfolio.reload.holdings.count).to eq 1
+        expect(portfolio.reload.holdings.last).to eq holding
       end
     end
 
@@ -60,7 +60,7 @@ RSpec.describe '/holdings', type: :request do
         login_as evil_user
         post(portfolio_holdings_path(portfolio), params:)
 
-        expect(portfolio.holdings).to be_empty
+        expect(portfolio.reload.holdings).to be_empty
         expect(response).to redirect_to root_path
         expect(flash[:alert]).to eq 'Not found'
       end
@@ -75,7 +75,7 @@ RSpec.describe '/holdings', type: :request do
         post(portfolio_holdings_path(portfolio), params:)
 
         expect(response).to redirect_to new_user_session_path
-        expect(portfolio.holdings.count).to eq 0
+        expect(portfolio.reload.holdings.count).to eq 0
       end
     end
   end
@@ -110,7 +110,7 @@ RSpec.describe '/holdings', type: :request do
         login_as portfolio.owner, scope: :user
         patch(holding_path(holding), params:)
 
-        expect(holding.amount).to eq 5.0
+        expect(holding.reload.amount).to eq 5.0
       end
 
       it 'Withdraws valid amount with success' do
@@ -223,13 +223,13 @@ RSpec.describe '/holdings', type: :request do
         patch(holding_path(holding), params:)
 
         expect(response).to redirect_to new_user_session_path
-        expect(holding.amount).to eq 5.0
+        expect(holding.reload.amount).to eq 5.0
       end
     end
   end
 
   describe 'DELETE /holding/:id' do
-    context 'authenticated' do
+    context 'authenticated and authorized' do
       it 'Deletes holding from portfolio' do
         coin_a = create :coin, ticker: 'CNA'
         coin_b = create :coin, ticker: 'CNB'
@@ -240,10 +240,37 @@ RSpec.describe '/holdings', type: :request do
         login_as portfolio.owner, scope: :user
         delete(holding_path(holding_a))
 
-        expect(portfolio.holdings).not_to include holding_a
+        expect(portfolio.reload.holdings).not_to include holding_a
         expect(portfolio.holdings).to include holding_b
         expect(response).to redirect_to portfolio_path(portfolio)
         expect(flash[:notice]).to eq 'Removed CNA from portfolio'
+      end
+    end
+
+    context 'authenticated and unauthorized' do
+      it 'redirects to root path and doesn\'t delete holding' do
+        user = create :user
+        portfolio = create :portfolio, account: user.account
+        holding = create :holding, portfolio:, amount: 5.5
+        evil_user = create :user
+
+        login_as evil_user, scope: :user
+        delete holding_path(holding)
+
+        expect(holding.reload).to be_present
+        expect(response).to redirect_to root_path
+        expect(flash[:alert]).to eq 'Not found'
+      end
+    end
+
+    context 'unauthenticated' do
+      it 'redirects to login page and doesn\'t delete holding' do
+        holding = create :holding, amount: 5.0
+
+        delete holding_path(holding)
+
+        expect(response).to redirect_to new_user_session_path
+        expect(holding.reload).to be_present
       end
     end
   end

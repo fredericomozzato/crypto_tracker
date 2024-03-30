@@ -1,7 +1,7 @@
 class HoldingsController < ApplicationController
   before_action :set_holding,                      only: %i[edit update destroy]
-  before_action :set_portfolio, :set_coins,        only: %i[new create update]
-  before_action -> { authorize_owner @portfolio }, only: %i[create update]
+  before_action :set_portfolio, :set_coins,        only: %i[new create update destroy]
+  before_action -> { authorize_owner @portfolio }, only: %i[create update destroy]
 
   def new
     @holding = @portfolio.holdings.build
