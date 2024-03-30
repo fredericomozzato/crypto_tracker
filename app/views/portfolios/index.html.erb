@@ -8,6 +8,7 @@
       <% @portfolios.each do |portfolio| %>
         <li>
           <%= link_to portfolio.name, [portfolio] %>
+          <%= number_to_currency portfolio.total_balance %>
         </li>
       <% end %>
     </ul>
