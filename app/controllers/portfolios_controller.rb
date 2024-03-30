@@ -1,10 +1,14 @@
 class PortfoliosController < ApplicationController
-  before_action :set_account,                      only: %i[index create]
+  before_action :set_account,                      only: %i[index new create]
   before_action :set_portfolio,                    only: %i[show destroy]
   before_action -> { authorize_owner @portfolio }, only: %i[show destroy]
 
   def index
     @portfolios = @account.portfolios
+  end
+
+  def new
+    @portfolio = @account.portfolios.build
   end
 
   def create

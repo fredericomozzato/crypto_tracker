@@ -3,9 +3,9 @@ Rails.application.routes.draw do
 
   get 'up' => 'rails/health#show', as: :rails_health_check
 
-  root 'pages#index'
+  root 'portfolios#index'
 
-  resources :portfolios, only: %i[index create show destroy] do
+  resources :portfolios, only: %i[index new create show destroy] do
     resources :holdings, only: %i[new create]
   end
 
