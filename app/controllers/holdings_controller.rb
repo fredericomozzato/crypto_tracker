@@ -58,6 +58,7 @@ class HoldingsController < ApplicationController
     in 'deposit'  then @holding.deposit  BigDecimal(params.dig(:holding, :amount))
     in 'withdraw' then @holding.withdraw BigDecimal(params.dig(:holding, :amount))
     in 'update'   then @holding.amount = BigDecimal(params.dig(:holding, :amount))
+    else nil
     end
   end
 end

@@ -189,7 +189,18 @@ RSpec.describe '/holdings', type: :request do
         expect(holding.reload.amount).to eq 5.5
       end
 
-      it 'Can\'t modify holding with non-existing operation'
+      it 'Can\'t modify holding with non-existing operation' do
+        portfolio = create :portfolio
+        holding = create :holding, portfolio:, amount: 9.9
+        params = { holding: { id: holding.id,
+                              operation: 'invalid_operation',
+                              amount: 888.88 } }
+
+        login_as portfolio.owner, scope: :user
+        patch(holding_path(holding), params:)
+
+        expect(holding.reload.amount).to eq 9.9
+      end
     end
 
     context 'authenticated and unauthorized' do
