@@ -5,6 +5,8 @@ class PortfoliosController < ApplicationController
 
   def index
     @portfolios = @account.portfolios
+                          .sort_by(&:total_balance)
+                          .reverse
   end
 
   def new
@@ -22,7 +24,9 @@ class PortfoliosController < ApplicationController
   end
 
   def show
-    @holdings = @portfolio.holdings.sort_by(&:value).reverse
+    @holdings = @portfolio.holdings
+                          .sort_by(&:value)
+                          .reverse
   end
 
   def edit; end
