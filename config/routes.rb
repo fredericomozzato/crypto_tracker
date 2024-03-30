@@ -7,6 +7,8 @@ Rails.application.routes.draw do
 
   get '/dashboard', to: 'dashboard#show'
 
+  resources :account, only: %i[show]
+
   resources :portfolios, only: %i[index new create show edit destroy] do
     resources :holdings, only: %i[new create]
   end
