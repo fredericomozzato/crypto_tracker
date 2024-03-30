@@ -1,7 +1,7 @@
 class PortfoliosController < ApplicationController
-  before_action :set_account,     only: %i[index create]
-  before_action :set_portfolio,   only: %i[show destroy]
-  before_action :authorize_owner, only: %i[show destroy]
+  before_action :set_account,                      only: %i[index create]
+  before_action :set_portfolio,                    only: %i[show destroy]
+  before_action -> { authorize_owner @portfolio }, only: %i[show destroy]
 
   def index
     @portfolios = @account.portfolios
@@ -34,10 +34,6 @@ class PortfoliosController < ApplicationController
 
   def set_portfolio
     @portfolio = Portfolio.includes(:holdings).find params[:id]
-  end
-
-  def authorize_owner
-    redirect_to root_path, alert: t('portfolios.unauthorized') unless @portfolio.owner == current_user
   end
 
   def portfolio_params

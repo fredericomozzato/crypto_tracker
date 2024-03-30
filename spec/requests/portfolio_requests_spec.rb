@@ -119,7 +119,7 @@ RSpec.describe '/portfolios', type: :request do
     end
 
     context 'authenticated and unauthorized' do
-      it 'redirects to root path' do
+      it 'redirects to root path and doesn\'t delete portfolio' do
         user = create :user
         portfolio = create :portfolio, account: user.account
         evil_user = create :user

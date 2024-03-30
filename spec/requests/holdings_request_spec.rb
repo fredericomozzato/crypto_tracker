@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe '/holdings', type: :request do
   describe 'POST /portfolio/holdings' do
-    context 'authenticated' do
+    context 'authenticated and authorized' do
       it 'creates a holding associated with the portfolio' do
         coin = create :coin, name: 'Coin', ticker: 'COI', rate: 9.99
         user = create :user
@@ -48,6 +48,24 @@ RSpec.describe '/holdings', type: :request do
       end
     end
 
+    context 'authenticated and unauthorized' do
+      it 'redirects to root path and doesn\'t create holding' do
+        coin = create :coin
+        user = create :user
+        portfolio = create :portfolio, account: user.account
+        evil_user = create :user
+        params = { holding: { coin_id: coin.id,
+                              portfolio_id: portfolio.id } }
+
+        login_as evil_user
+        post(portfolio_holdings_path(portfolio), params:)
+
+        expect(portfolio.holdings).to be_empty
+        expect(response).to redirect_to root_path
+        expect(flash[:alert]).to eq 'Not found'
+      end
+    end
+
     context 'unauthenticated' do
       it 'redirects to login page and doesn\'t create holding' do
         coin = create :coin
@@ -63,7 +81,7 @@ RSpec.describe '/holdings', type: :request do
   end
 
   describe 'PATCH /holding/:id' do
-    context 'authenticated' do
+    context 'authenticated and authorized' do
       it 'Deposit valid amount with success' do
         coin = create :coin, ticker: 'COI'
         portfolio = create :portfolio
