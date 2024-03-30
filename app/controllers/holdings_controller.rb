@@ -1,7 +1,7 @@
 class HoldingsController < ApplicationController
-  before_action :set_portfolio, :set_coins,        only: %i[new create]
   before_action :set_holding,                      only: %i[edit update destroy]
-  before_action -> { authorize_owner @portfolio }, only: %i[create]
+  before_action :set_portfolio, :set_coins,        only: %i[new create update]
+  before_action -> { authorize_owner @portfolio }, only: %i[create update]
 
   def new
     @holding = @portfolio.holdings.build
@@ -38,7 +38,7 @@ class HoldingsController < ApplicationController
   private
 
   def set_portfolio
-    @portfolio = Portfolio.find params[:portfolio_id]
+    @portfolio = Portfolio.find_by(id: params[:portfolio_id]) || @holding.portfolio
   end
 
   def set_coins

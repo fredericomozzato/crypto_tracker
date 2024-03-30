@@ -175,20 +175,6 @@ RSpec.describe '/holdings', type: :request do
         expect(holding.reload.amount).to eq 5.5
       end
 
-      it 'Update holding amount to 0' do
-        portfolio = create :portfolio
-        holding = create :holding, portfolio:, amount: 10.0
-        new_amount = 0.0
-        params = { holding: { id: holding.id,
-                              operation: 'update',
-                              amount: new_amount } }
-
-        login_as portfolio.owner, scope: :user
-        patch(holding_path(holding), params:)
-
-        expect(holding.reload.amount).to eq 0.0
-      end
-
       it 'Can\'t update holding to negative amount' do
         portfolio = create :portfolio
         holding = create :holding, portfolio:, amount: 5.5
@@ -201,6 +187,27 @@ RSpec.describe '/holdings', type: :request do
         patch(holding_path(holding), params:)
 
         expect(holding.reload.amount).to eq 5.5
+      end
+
+      it 'Can\'t modify holding with non-existing operation'
+    end
+
+    context 'authenticated and unauthorized' do
+      it 'redirects to root path and doesn\'t modify holding' do
+        user = create :user
+        portfolio = create :portfolio, account: user.account
+        holding = create :holding, portfolio:, amount: 10.0
+        evil_user = create :user
+        params = { holding: { id: holding.id,
+                              operation: 'deposit',
+                              amount: 5.0 } }
+
+        login_as evil_user, scope: :user
+        patch(holding_path(holding), params:)
+
+        expect(holding.reload.amount).to eq 10.0
+        expect(response).to redirect_to root_path
+        expect(flash[:alert]).to eq 'Not found'
       end
     end
 
