@@ -1,6 +1,7 @@
 class HoldingsController < ApplicationController
-  before_action :set_portfolio, :set_coins, only: %i[new create]
-  before_action :set_holding, only: %i[edit update destroy]
+  before_action :set_holding,                      only: %i[edit update destroy]
+  before_action :set_portfolio, :set_coins,        only: %i[new create update destroy]
+  before_action -> { authorize_owner @portfolio }, only: %i[create update destroy]
 
   def new
     @holding = @portfolio.holdings.build
@@ -37,7 +38,7 @@ class HoldingsController < ApplicationController
   private
 
   def set_portfolio
-    @portfolio = Portfolio.find params[:portfolio_id]
+    @portfolio = Portfolio.find_by(id: params[:portfolio_id]) || @holding.portfolio
   end
 
   def set_coins
@@ -57,6 +58,7 @@ class HoldingsController < ApplicationController
     in 'deposit'  then @holding.deposit  BigDecimal(params.dig(:holding, :amount))
     in 'withdraw' then @holding.withdraw BigDecimal(params.dig(:holding, :amount))
     in 'update'   then @holding.amount = BigDecimal(params.dig(:holding, :amount))
+    else nil
     end
   end
 end

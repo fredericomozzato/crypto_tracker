@@ -1,5 +1,7 @@
 class PortfoliosController < ApplicationController
-  before_action :set_account, only: %i[create index]
+  before_action :set_account,                      only: %i[index create]
+  before_action :set_portfolio,                    only: %i[show destroy]
+  before_action -> { authorize_owner @portfolio }, only: %i[show destroy]
 
   def index
     @portfolios = @account.portfolios
@@ -16,12 +18,10 @@ class PortfoliosController < ApplicationController
   end
 
   def show
-    @portfolio = Portfolio.includes(:holdings).find params[:id]
     @holdings = @portfolio.holdings.sort_by(&:value).reverse
   end
 
   def destroy
-    @portfolio = Portfolio.find params[:id]
     @portfolio.destroy
     redirect_to portfolios_path, notice: t('.success')
   end
@@ -30,6 +30,10 @@ class PortfoliosController < ApplicationController
 
   def set_account
     @account = current_user.account
+  end
+
+  def set_portfolio
+    @portfolio = Portfolio.includes(:holdings).find params[:id]
   end
 
   def portfolio_params
