@@ -5,3 +5,4 @@ en:
       fail: Unable to create Portfolio
     destroy:
       success: Portfolio deleted successfully
+    delete_confirm: Delete portfolio? This action can't be undone

@@ -3,9 +3,13 @@ Rails.application.routes.draw do
 
   get 'up' => 'rails/health#show', as: :rails_health_check
 
-  root 'pages#index'
+  root 'dashboard#show'
 
-  resources :portfolios, only: %i[index create show destroy] do
+  get '/dashboard', to: 'dashboard#show'
+
+  resources :account, only: %i[show]
+
+  resources :portfolios, only: %i[index new create show edit destroy] do
     resources :holdings, only: %i[new create]
   end
 

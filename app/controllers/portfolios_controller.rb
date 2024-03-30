@@ -1,10 +1,16 @@
 class PortfoliosController < ApplicationController
-  before_action :set_account,                      only: %i[index create]
-  before_action :set_portfolio,                    only: %i[show destroy]
+  before_action :set_account,                      only: %i[index new create]
+  before_action :set_portfolio,                    only: %i[show edit destroy]
   before_action -> { authorize_owner @portfolio }, only: %i[show destroy]
 
   def index
     @portfolios = @account.portfolios
+                          .sort_by(&:total_balance)
+                          .reverse
+  end
+
+  def new
+    @portfolio = @account.portfolios.build
   end
 
   def create
@@ -18,8 +24,12 @@ class PortfoliosController < ApplicationController
   end
 
   def show
-    @holdings = @portfolio.holdings.sort_by(&:value).reverse
+    @holdings = @portfolio.holdings
+                          .sort_by(&:value)
+                          .reverse
   end
+
+  def edit; end
 
   def destroy
     @portfolio.destroy

@@ -1,0 +1,13 @@
+<%= link_to 'Back', [@portfolio] %>
+
+<section>
+  <h1>Edit portfolio</h1>
+  
+  <%= render 'form', 
+             portfolio: @portfolio %>
+             
+  <%= button_to 'Delete',
+                @portfolio,
+                method: :delete,
+                data: { turbo_confirm: t('portfolios.delete_confirm') } %>
+</section>

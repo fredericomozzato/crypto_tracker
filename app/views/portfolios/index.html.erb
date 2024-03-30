@@ -1,11 +1,16 @@
+<%= link_to 'Back', [:dashboard] %>
+
 <section>
   <h1>Portfolios</h1>
+
+  <%= link_to 'New Portfolio', [:new, :portfolio] %>
   
   <div>
     <ul>
       <% @portfolios.each do |portfolio| %>
         <li>
           <%= link_to portfolio.name, [portfolio] %>
+          <%= number_to_currency portfolio.total_balance %>
         </li>
       <% end %>
     </ul>

@@ -1,0 +1,30 @@
+<section>
+  <h1>Dashboard</h1>
+  
+  <div id="header">
+    <h2>Account info</h2>
+    <p>Net worth: <%= number_to_currency @account.net_worth %></p>
+  </div>
+  
+  <div>
+    <%= link_to 'Portfolios', [:portfolios] %>
+  </div>
+  
+  <hr>
+  
+  <div>
+    <h3>Assets</h3>
+    
+    <table>
+      <thead>
+        <tr>
+          <th>Asset</th>
+          <th>Rate</th>
+          <th>Balance</th>
+          <th>USD</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
