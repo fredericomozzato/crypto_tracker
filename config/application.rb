@@ -33,5 +33,7 @@ module CryptoTracker
         request_specs: false
       g.fixture_replacement :factory_bot, dir: "spec/factories"
     end
+
+    config.coingecko_api = config_for(:coingecko_api)
   end
 end

@@ -6,6 +6,6 @@ class Coin < ApplicationRecord
   validates :rate, numericality: { greater_than_or_equal_to: 0 }
 
   def self.ids_as_string
-    Coin.all.pluck(:api_id).join ','
+    Coin.all.order(:created_at).pluck(:api_id).join ','
   end
 end

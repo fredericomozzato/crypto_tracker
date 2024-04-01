@@ -1,0 +1,6 @@
+shared:
+  base_url: 'https://api.coingecko.com'
+  markets_url: '/api/v3/coins/markets'
+  prices_url: '/api/v3/simple/price'
+  
+  supported_currencies: 'usd'
