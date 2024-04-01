@@ -79,6 +79,11 @@ RSpec.describe Account, type: :model do
       portfolio2.holdings.create([{ coin: coin_b, amount: 2.2 },
                                   { coin: coin_c, amount: 3.3 },
                                   { coin: coin_d, amount: 4.4 }])
+      other_user = create :user
+      other_portfolio = create :portfolio, account: other_user.account
+      other_portfolio.holdings.create([{ coin: coin_a, amount: 900 },
+                                       { coin: coin_b, amount: 500 },
+                                       { coin: coin_c, amount: 600 }])
 
       assets = user.account.assets
 
@@ -89,6 +94,20 @@ RSpec.describe Account, type: :model do
       expect(assets[coin_d]).to eq 4.4
     end
 
-    it 'Returns an empty hash if there are no assets'
+    it 'return an empty hash if there are no assets in account' do
+      coin_a = create :coin, ticker: 'CNA', rate: 1.11
+      coin_b = create :coin, ticker: 'CNB', rate: 2.22
+      coin_c = create :coin, ticker: 'CNC', rate: 3.33
+      user = create :user
+      other_user = create :user
+      other_portfolio = create :portfolio, account: other_user.account
+      other_portfolio.holdings.create([{ coin: coin_a, amount: 900 },
+                                       { coin: coin_b, amount: 500 },
+                                       { coin: coin_c, amount: 600 }])
+
+      assets = user.account.assets
+
+      expect(assets).to eq({})
+    end
   end
 end
