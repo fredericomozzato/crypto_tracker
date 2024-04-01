@@ -30,7 +30,7 @@
           <tr>
             <td><%= coin.ticker %></td>
             <td><%= number_to_currency coin.rate.round 2 %></td>
-            <td><%= amount %></td>
+            <td><%= amount.round 4 %></td>
             <td><%= asset_value coin, amount %></td>
             <td><%= asset_percentage coin, amount, @account.net_worth %></td>
           </tr>

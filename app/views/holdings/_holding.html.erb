@@ -6,7 +6,7 @@
     <%= number_to_currency holding.rate.round(2) %>
   </td>
   <td class="border p-1">
-    <%= holding.amount %>
+    <%= holding.amount.round 4 %>
   </td>
   <td class="border p-1">
     <%= number_to_currency holding.value.round(2) %>
