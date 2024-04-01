@@ -1,6 +1,12 @@
 class GeckoService
   GECKO_CONSTANTS = Rails.configuration.coingecko_api
 
+  def self.conn
+    Faraday.new(url: GECKO_CONSTANTS[:base_url],
+                headers: { 'Content-Type': 'application/json' })
+  end
+  private_class_method :conn
+
   def self.top_markets
     res = conn.get(GECKO_CONSTANTS[:markets_url], {
                      vs_currency: 'usd',
@@ -21,10 +27,4 @@ class GeckoService
 
     res.body if res.status == 200
   end
-
-  def self.conn
-    Faraday.new(url: GECKO_CONSTANTS[:base_url],
-                headers: { 'Content-Type': 'application/json' })
-  end
-  private_class_method :conn
 end
