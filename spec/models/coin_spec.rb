@@ -86,4 +86,22 @@ RSpec.describe Coin, type: :model do
       expect(coin.errors.full_messages).to include 'Active can\'t be blank'
     end
   end
+
+  describe '.ids_as_string' do
+    it 'Returns string with comma separated api_ids of every saved coin' do
+      coin_a       = create :coin, api_id: 'coin_a'
+      coin_b       = create :coin, api_id: 'coin_b'
+      coin_c       = create :coin, api_id: 'coin_c'
+      unsaved_coin = build  :coin, api_id: 'unsaved_coin'
+
+      ids_string = Coin.ids_as_string
+
+      expect(ids_string).to     include coin_a.api_id, coin_b.api_id, coin_c.api_id
+      expect(ids_string).not_to include unsaved_coin.api_id
+    end
+
+    it 'returns an empty string if there are no coins in database' do
+      expect(Coin.ids_as_string).to eq ''
+    end
+  end
 end

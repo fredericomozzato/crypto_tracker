@@ -12,5 +12,14 @@ class GeckoService
     res.body if res.status == 200
   end
 
-  def self.prices; end
+  def self.prices
+    conn = Faraday.new(url: 'https://api.coingecko.com',
+                       headers: { 'Content-Type': 'application/json' })
+
+    res = conn.get('/api/v3/simple/price', { ids: Coin.ids_as_string,
+                                             vs_currencies: 'usd',
+                                             precision: 8 })
+
+    res.body if res.status == 200
+  end
 end
