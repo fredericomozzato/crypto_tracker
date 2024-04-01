@@ -1,11 +1,7 @@
 class CoinService
   def self.import_coins
     res = JSON.parse GeckoService.top_markets, symbolize_names: true
-
-    res.each do |r|
-      Coin.create name: r[:name], api_id: r[:id], ticker: r[:symbol].upcase,
-                  icon: r[:image], rate: r[:current_price], active: true
-    end
+    res.each { |row| Coin.create coin_params row }
   end
 
   def self.refresh_rates
@@ -13,7 +9,18 @@ class CoinService
 
     res.each_pair do |api_id, current_price|
       coin = Coin.find_by(api_id:)
-      coin&.update(rate: current_price[:usd])
+      coin&.update rate: current_price[:usd]
     end
   end
+
+  def self.coin_params(row)
+    {
+      name: row[:name],
+      api_id: row[:id],
+      ticker: row[:symbol].upcase,
+      icon: row[:image],
+      rate: row[:current_price]
+    }
+  end
+  private_class_method :coin_params
 end

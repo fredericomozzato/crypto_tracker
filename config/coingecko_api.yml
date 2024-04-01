@@ -1,0 +1,11 @@
+shared:
+  base_url:    'https://api.coingecko.com'
+  markets_url: '/api/v3/coins/markets'
+  prices_url:  '/api/v3/simple/price'
+  
+  base_currency:        'usd'
+  order:                'market_cap_desc'
+  limit:                 100
+  price_delta:          '24h'
+  supported_currencies: 'usd'
+  precision:             8
