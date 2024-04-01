@@ -13,7 +13,7 @@
   <hr>
   
   <div>
-    <h3>Assets</h3>
+    <h3>Account assets</h3>
     
     <table>
       <thead>
@@ -22,9 +22,20 @@
           <th>Rate</th>
           <th>Balance</th>
           <th>USD</th>
+          <th>%</th>
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody>
+        <% @account.assets.each_pair do |coin, amount| %>
+          <tr>
+            <td><%= coin.ticker %></td>
+            <td><%= number_to_currency coin.rate.round 2 %></td>
+            <td><%= amount.round 4 %></td>
+            <td><%= asset_value coin, amount %></td>
+            <td><%= asset_percentage coin, amount, @account.net_worth %></td>
+          </tr>
+        <% end %>
+      </tbody>
     </table>
   </div>
 </section>

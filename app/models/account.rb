@@ -1,7 +1,7 @@
 class Account < ApplicationRecord
   belongs_to :owner, class_name: 'User'
   has_many :portfolios, dependent: :destroy
-  has_many :holdings, through: :portfolio
+  has_many :holdings, through: :portfolios
 
   validates :uuid, presence: true
   validates :owner, :uuid, uniqueness: true
@@ -10,6 +10,10 @@ class Account < ApplicationRecord
 
   def net_worth
     portfolios.map(&:total_balance).sum
+  end
+
+  def assets
+    holdings.group(:coin).sum(:amount)
   end
 
   private
