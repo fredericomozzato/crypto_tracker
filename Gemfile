@@ -38,4 +38,3 @@ group :test do
   gem 'rspec-rails'
   gem 'simplecov', '~> 0.22.0', require: false
 end
-
