@@ -15,7 +15,7 @@ class GeckoService
                      price_change_percentage: GECKO_CONSTANTS[:price_delta],
                      precision: GECKO_CONSTANTS[:precision] }
 
-    res.body if res.status == :ok
+    res.body if res.status == 200
   end
 
   def self.prices
@@ -24,6 +24,6 @@ class GeckoService
                      vs_currencies: GECKO_CONSTANTS[:supported_currencies],
                      precision: GECKO_CONSTANTS[:precision] }
 
-    res.body if res.status == :ok
+    res.body if res.status == 200
   end
 end
