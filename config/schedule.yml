@@ -1,0 +1,4 @@
+refresh_rates:
+  cron: '* * * * *'
+  class: 'RefreshRatesJob'
+  queue: default
