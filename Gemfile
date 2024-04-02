@@ -14,6 +14,7 @@ gem 'jsbundling-rails'
 gem 'pg', '~> 1.1'
 gem 'puma', '>= 5.0'
 gem 'rails', '~> 7.1.3', '>= 7.1.3.2'
+gem 'sidekiq', '~> 7.2'
 gem 'sprockets-rails'
 gem 'stimulus-rails'
 gem 'turbo-rails'
@@ -37,3 +38,4 @@ group :test do
   gem 'rspec-rails'
   gem 'simplecov', '~> 0.22.0', require: false
 end
+
