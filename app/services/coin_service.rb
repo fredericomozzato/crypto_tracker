@@ -19,7 +19,8 @@ class CoinService
       api_id: row[:id],
       ticker: row[:symbol].upcase,
       icon: row[:image],
-      rate: row[:current_price]
+      rate: row[:current_price],
+      price_change: row[:price_change_percentage_24h]
     }
   end
   private_class_method :coin_params
