@@ -1,7 +1,7 @@
 class PortfoliosController < ApplicationController
   before_action :set_account,                      only: %i[index new create]
-  before_action :set_portfolio,                    only: %i[show edit destroy]
-  before_action -> { authorize_owner @portfolio }, only: %i[show destroy]
+  before_action :set_portfolio,                    only: %i[show edit update destroy]
+  before_action -> { authorize_owner @portfolio }, only: %i[show update destroy]
 
   def index
     @portfolios = @account.portfolios
@@ -30,6 +30,15 @@ class PortfoliosController < ApplicationController
   end
 
   def edit; end
+
+  def update
+    if @portfolio.update portfolio_params
+      redirect_to @portfolio, notice: t('.success')
+    else
+      flash.now[:alert] = t '.fail'
+      render :new, status: :unprocessable_entity
+    end
+  end
 
   def destroy
     @portfolio.destroy
