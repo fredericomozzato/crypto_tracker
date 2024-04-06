@@ -149,7 +149,7 @@ RSpec.describe '/portfolios', type: :request do
     context 'authenticated and authorized' do
       it 'successfully updates a portfolio\'s name' do
         portfolio = create :portfolio, name: 'Some name'
-        params = { portfolio: { name: 'Different name' } }
+        params    = { portfolio: { name: 'Different name' } }
 
         login_as portfolio.owner, scope: :user
         patch(portfolio_path(portfolio), params:)
@@ -161,7 +161,7 @@ RSpec.describe '/portfolios', type: :request do
 
       it 'Can\'t update portfolio\'s name to empty value' do
         portfolio = create :portfolio, name: 'Some name'
-        params = { portfolio: { name: '' } }
+        params    = { portfolio: { name: '' } }
 
         login_as portfolio.owner, scope: :user
         patch(portfolio_path(portfolio), params:)
@@ -171,8 +171,31 @@ RSpec.describe '/portfolios', type: :request do
       end
     end
 
-    context 'authenticated and unauthorized'
+    context 'authenticated and unauthorized' do
+      it 'can\'t change name from another user\'s portfolio' do
+        owner     = create :user
+        evil_user = create :user
+        portfolio = create :portfolio, account: owner.account, name: 'Some name'
+        params    = { portfolio: { name: 'Another name' } }
 
-    context 'unauthenticated'
+        login_as evil_user, scope: :user
+        patch(portfolio_path(portfolio), params:)
+
+        expect(portfolio.reload.name).to eq 'Some name'
+        expect(response).to redirect_to root_path
+      end
+    end
+
+    context 'unauthenticated' do
+      it 'redirects to login page' do
+        portfolio = create :portfolio, name: 'Some name'
+        params    = { portfolio: { name: 'Another name' } }
+
+        patch(portfolio_path(portfolio), params:)
+
+        expect(response).to redirect_to new_user_session_path
+        expect(portfolio.reload.name).to eq 'Some name'
+      end
+    end
   end
 end

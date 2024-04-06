@@ -1,7 +1,7 @@
 class PortfoliosController < ApplicationController
   before_action :set_account,                      only: %i[index new create]
   before_action :set_portfolio,                    only: %i[show edit update destroy]
-  before_action -> { authorize_owner @portfolio }, only: %i[show destroy]
+  before_action -> { authorize_owner @portfolio }, only: %i[show update destroy]
 
   def index
     @portfolios = @account.portfolios
