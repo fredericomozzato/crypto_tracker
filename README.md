@@ -25,7 +25,14 @@ Next, install all the gems with
 $ bundle install
 ```
 
-To run the application you execute
+To run the application first make sure that all the services are running with
+
+```
+$ docker compose up -d
+```
+The Procfile should run this command by itself, but sometimes the containers take too long to run and may cause some errors.
+
+With all services running you can start the server with
 
 ```
 $ bin/dev
@@ -33,7 +40,7 @@ $ bin/dev
 
 **IMPORTANT:** before starting the application for the first time you should run the services with compose and then `rails db:prepare` after the db service is up. This will ensure that all the tables are created and the migrations are applied.
 
-The compose file will also run a Redis service for the Sidekiq worker that runs scheduled jobs, refreshing coins' rates every minute. To reduce the burden on systems running the application the Sidekiq worker was not added to a separate container, but is executed locally with the Procfile.
+The compose file will also run a Redis service for the Sidekiq worker that runs scheduled jobs, refreshing coins' rates every minute. To reduce the burden on systems running the application, the Sidekiq worker was not added to a separate container, but is executed locally with the Procfile.
 
 ### Seeds
 

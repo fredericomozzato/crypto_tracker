@@ -144,4 +144,35 @@ RSpec.describe '/portfolios', type: :request do
       end
     end
   end
+
+  describe 'PATCH /portfolios/:id' do
+    context 'authenticated and authorized' do
+      it 'successfully updates a portfolio\'s name' do
+        portfolio = create :portfolio, name: 'Some name'
+        params = { portfolio: { name: 'Different name' } }
+
+        login_as portfolio.owner, scope: :user
+        patch(portfolio_path(portfolio), params:)
+
+        expect(portfolio.reload.name).to eq 'Different name'
+        expect(response).to redirect_to portfolio_path portfolio
+        expect(flash[:notice]).to eq 'Portfolio successfully updated'
+      end
+
+      it 'Can\'t update portfolio\'s name to empty value' do
+        portfolio = create :portfolio, name: 'Some name'
+        params = { portfolio: { name: '' } }
+
+        login_as portfolio.owner, scope: :user
+        patch(portfolio_path(portfolio), params:)
+
+        expect(portfolio.reload.name).to eq 'Some name'
+        expect(flash[:alert]).to eq 'Error saving portfolio'
+      end
+    end
+
+    context 'authenticated and unauthorized'
+
+    context 'unauthenticated'
+  end
 end

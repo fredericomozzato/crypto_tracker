@@ -13,7 +13,7 @@ Rails.application.routes.draw do
 
   resources :account, only: %i[show]
 
-  resources :portfolios, only: %i[index new create show edit destroy] do
+  resources :portfolios do
     resources :holdings, only: %i[new create]
   end
 
