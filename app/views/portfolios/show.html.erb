@@ -3,28 +3,34 @@
             class: 'btn-primary' %>
 
 <section>
-  <div class="mb-3">
+  <div class="my-3">
     <h1 class="text-4xl font-semibold">
       <%= @portfolio.name %>
     </h1>
     <h2 class="text-lg font-lg">
-      Total Balance: <%= number_to_currency @portfolio.total_balance %>
+      Total Balance: <span class="font-semibold text-green-800"><%= number_to_currency @portfolio.total_balance %></span>
     </h2>
   </div>
   
   
-  <div class="mb-3">
-    <%= link_to 'Manage', [:edit, @portfolio] %>
-    <%= link_to 'New Holding', new_portfolio_holding_path(@portfolio) %>
+  <div class="">
+    <%= link_to 'Manage', 
+                [:edit, @portfolio],
+                class: 'btn-primary' %>
+    <%= link_to 'New Holding', 
+                [:new, @portfolio, :holding],
+                class: 'btn-primary' %>
   </div>
+  
+  <hr class="my-3">
   
   <table class="table-auto">
     <thead>
       <trow>
-        <th class="">Asset</th>
-        <th class="">Balance</th>
-        <th class="">Proportion</th>
-        <th class=""></th>
+        <th class="font-normal text-base text-slate-700">Asset</th>
+        <th class="font-normal text-base text-slate-700">Balance</th>
+        <th class="font-normal text-base text-slate-700">Proportion</th>
+        <th class="font-normal text-base text-slate-700"></th>
       </trow>
     </thead>
     <tbody>

@@ -1,26 +1,37 @@
 <tr>
-  <div>
-    <td class="p-1">
+  <td class="p-1">
+    <div class="">
       <img src="<%= holding.coin.icon %>%>"
           alt="<%= holding.coin.api_id %>%>_icon"
           width="25">
-      <%= holding.ticker %>
-      <%= number_to_currency holding.rate.round(2) %>
-      <%= number_to_percentage holding.price_change,
-                              precision: 2 %>
-    </td>
-    <td class="p-1">
+      <div>
+        <p class="font-semibold text-base">
+          <%= holding.ticker %>
+        </p>
+        <p class="text-xs">
+          <%= number_to_currency holding.rate.round(2) %> 
+          (<%= number_to_percentage holding.price_change, precision: 2 %>)
+        </p>
+      </div>
+    </div>
+  </td>
+  
+  <td class="p-1">
+    <p>
       <%= number_to_currency holding.value.round(2) %>
+    </p>
+    <p  class="text-xs">
       <%= holding.amount.round 5 %>
-    </td>
-    <td class="p-1">
-      <%= number_to_percentage holding.proportion,
-                              precision: 2 %>
-    </td>
-    <td class="p-1">
-      <%= link_to 'Manage', 
-                  [:edit, holding],
-                  class: 'btn-primary' %>
-    </td>
-  </div>
+    </p>
+  </td>
+  <td class="p-1">
+    <%= number_to_percentage holding.proportion,
+                             precision: 2 %>
+  </td>
+  
+  <td class="p-1">
+    <%= link_to 'Manage', 
+                [:edit, holding],
+                class: 'btn-primary' %>
+  </td>
 </tr>
