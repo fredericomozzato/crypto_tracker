@@ -22,6 +22,7 @@ class GeckoService
     res = conn.get GECKO_CONSTANTS[:prices_url],
                    { ids: Coin.ids_as_string,
                      vs_currencies: GECKO_CONSTANTS[:supported_currencies],
+                     include_24hr_change: true,
                      precision: GECKO_CONSTANTS[:precision] }
 
     res.body if res.status == 200
