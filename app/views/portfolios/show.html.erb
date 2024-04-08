@@ -23,18 +23,17 @@
   </div>
   
   <hr class="my-3">
+   
+  <div id="table-header" 
+       class="grid grid-cols-3 mb-2">
+    <div class="text-sm">Asset</div>
+    <div class="text-sm">Balance</div>
+    <div class="text-sm">Proportion</div>
+  </div>
   
-  <table class="table-auto">
-    <thead>
-      <trow>
-        <th class="font-normal text-base text-slate-700">Asset</th>
-        <th class="font-normal text-base text-slate-700">Balance</th>
-        <th class="font-normal text-base text-slate-700">Proportion</th>
-        <th class="font-normal text-base text-slate-700"></th>
-      </trow>
-    </thead>
-    <tbody>
-      <%= render @holdings %>
-    </tbody>
-  </table>
+  <hr>
+    
+  <div id="table-body">
+    <%= render @holdings %>
+  </div>
 </section>
