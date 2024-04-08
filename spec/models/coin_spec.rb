@@ -78,6 +78,14 @@ RSpec.describe Coin, type: :model do
       expect(coin.errors.full_messages).to include 'Rate must be greater than or equal to 0'
     end
 
+    it 'false without price change' do
+      coin = build :coin, price_change: nil
+
+      expect(coin).not_to be_valid
+      expect(coin.errors).to include :price_change
+      expect(coin.errors.full_messages).to include 'Price change can\'t be blank'
+    end
+
     it 'false without active value' do
       coin = build :coin, active: ''
 

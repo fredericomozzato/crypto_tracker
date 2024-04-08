@@ -6,6 +6,9 @@
     <%= number_to_currency holding.rate.round(2) %>
   </td>
   <td class="border p-1">
+    <%= number_to_percentage holding.price_change, precision: 2 %>
+  </td>
+  <td class="border p-1">
     <%= holding.amount.round 4 %>
   </td>
   <td class="border p-1">

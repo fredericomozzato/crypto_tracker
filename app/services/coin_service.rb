@@ -7,9 +7,9 @@ class CoinService
   def self.refresh_rates
     res = JSON.parse GeckoService.prices, symbolize_names: true
 
-    res.each_pair do |api_id, current_price|
+    res.each_pair do |api_id, data|
       coin = Coin.find_by(api_id:)
-      coin&.update rate: current_price[:usd]
+      coin&.update rate: data[:usd], price_change: data[:usd_24h_change]
     end
   end
 
@@ -19,7 +19,8 @@ class CoinService
       api_id: row[:id],
       ticker: row[:symbol].upcase,
       icon: row[:image],
-      rate: row[:current_price]
+      rate: row[:current_price],
+      price_change: row[:price_change_percentage_24h]
     }
   end
   private_class_method :coin_params

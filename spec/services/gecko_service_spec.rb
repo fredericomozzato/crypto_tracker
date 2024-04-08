@@ -35,6 +35,7 @@ RSpec.describe GeckoService do
         '/api/v3/simple/price',
         ids: 'coin_a,coin_b,coin_c',
         vs_currencies: 'usd',
+        include_24hr_change: true,
         precision: 8
       )
     end

@@ -20,6 +20,7 @@
         <tr>
           <th>Asset</th>
           <th>Rate</th>
+          <th>Change 24h</th>
           <th>Balance</th>
           <th>USD</th>
           <th>%</th>
@@ -29,7 +30,8 @@
         <% @account.assets.each_pair do |coin, amount| %>
           <tr>
             <td><%= coin.ticker %></td>
-            <td><%= number_to_currency coin.rate.round 2 %></td>
+            <td><%= number_to_currency coin.rate.round 1 %></td>
+            <td><%= number_to_percentage coin.price_change, precision: 2 %></td>
             <td><%= amount.round 4 %></td>
             <td><%= asset_value coin, amount %></td>
             <td><%= asset_percentage coin, amount, @account.net_worth %></td>
