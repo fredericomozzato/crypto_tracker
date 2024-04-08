@@ -82,4 +82,20 @@ RSpec.describe Holding, type: :model do
       expect(holding.amount).to eq 0.0
     end
   end
+
+  describe '#proportion' do
+    it 'Returns the holding\'s USD proportion in relation to portfolio total value' do
+      coin_a    = create :coin, rate: 1.11
+      coin_b    = create :coin, rate: 2.22
+      coin_c    = create :coin, rate: 3.33
+      portfolio = create :portfolio
+      holding_a = create :holding, portfolio:, coin: coin_a, amount: 5
+      holding_b = create :holding, portfolio:, coin: coin_b, amount: 4
+      holding_c = create :holding, portfolio:, coin: coin_c, amount: 3
+
+      expect(holding_a.proportion).to eq 22.73
+      expect(holding_b.proportion).to eq 36.36
+      expect(holding_c.proportion).to eq 40.91
+    end
+  end
 end

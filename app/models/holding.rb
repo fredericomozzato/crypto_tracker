@@ -18,4 +18,8 @@ class Holding < ApplicationRecord
   def withdraw(amount)
     self.amount -= amount if amount.positive? && amount <= self.amount
   end
+
+  def proportion
+    (value / portfolio.total_balance * 100).round 2
+  end
 end
