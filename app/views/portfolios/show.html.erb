@@ -1,16 +1,20 @@
-<%= link_to 'Back', portfolios_path %>
+<%= link_to 'Back', 
+            portfolios_path,
+            class: 'btn-primary' %>
 
 <section>
-  <div class="header">
-    <h1><%= @portfolio.name %></h1>
-    <%= link_to 'Manage', [:edit, @portfolio] %>
+  <div class="mb-3">
+    <h1 class="text-4xl font-semibold">
+      <%= @portfolio.name %>
+    </h1>
+    <h2 class="text-lg font-lg">
+      Total Balance: <%= number_to_currency @portfolio.total_balance %>
+    </h2>
   </div>
   
-  <h3>
-    Total Balance: <%= number_to_currency @portfolio.total_balance %>
-  </h3>
   
-  <div>
+  <div class="mb-3">
+    <%= link_to 'Manage', [:edit, @portfolio] %>
     <%= link_to 'New Holding', new_portfolio_holding_path(@portfolio) %>
   </div>
   
