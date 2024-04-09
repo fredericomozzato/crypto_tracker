@@ -1,43 +1,29 @@
 <section>
-  <h1>Dashboard</h1>
-  
-  <div id="header">
-    <h2>Account info</h2>
-    <p>Net worth: <%= number_to_currency @account.net_worth %></p>
+  <div id="header"
+       class="my-3">
+    <h1>Dashboard</h1>
+    <h2>
+      Net worth: 
+      <span class="font-bold text-green-800">
+        <%= number_to_currency @account.net_worth %>
+      </span>
+    </h2>
   </div>
   
-  <div>
-    <%= link_to 'Portfolios', [:portfolios] %>
+  <div class="my-6">
+    <%= link_to 'Portfolios', 
+                [:portfolios],
+                class: 'btn-primary' %>
   </div>
+  
+  <%= render partial: 'shared/table_header' %>
   
   <hr>
   
   <div>
-    <h3>Account assets</h3>
-    
-    <table>
-      <thead>
-        <tr>
-          <th>Asset</th>
-          <th>Rate</th>
-          <th>Change 24h</th>
-          <th>Balance</th>
-          <th>USD</th>
-          <th>%</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% @account.assets.each_pair do |coin, amount| %>
-          <tr>
-            <td><%= coin.ticker %></td>
-            <td><%= number_to_currency coin.rate.round 1 %></td>
-            <td><%= number_to_percentage coin.price_change, precision: 2 %></td>
-            <td><%= amount.round 4 %></td>
-            <td><%= asset_value coin, amount %></td>
-            <td><%= asset_percentage coin, amount, @account.net_worth %></td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
+    <% @account.assets.each_pair do |coin, amount| %>
+      <%= render partial: 'asset', 
+                 locals: { coin:, amount: } %>
+    <% end %>
   </div>
 </section>

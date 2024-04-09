@@ -1,0 +1,43 @@
+<div class="py-2 px-2 grid grid-cols-5 items-start">
+  <div data-controller="holdings"
+       data-holdings-change-value="<%= coin.price_change %>"
+       class="col-span-2 p-1 flex flex-row gap-3 items-baseline">
+    <div class="self-center">
+      <img src="<%= coin.icon %>"
+           alt="<%= coin.api_id %>_icon"
+           class="bg-slate-50 rounded-full size-9 shadow-md">
+    </div>
+    
+    <div class="flex flex-col flex-1">
+      <div class="text-lg font-semibold">
+        <%= coin.ticker %>
+      </div>
+    
+      <div class="text-xs text-slate-600">
+        <%= number_to_currency coin.rate.round(2) %>
+      </div>
+    
+      <div data-holdings-target="priceChange"
+           class="text-xs">
+        <%= number_to_percentage coin.price_change, 
+                                 precision: 2 %>
+      </div>
+    </div>
+  </div>
+  
+  <div class="p-1 col-span-2 ps-6">
+    <div class="text-lg font-bold text-green-800">
+      <%= asset_value coin, amount %>
+    </div>
+    
+    <div class="text-xs text-slate-600">
+      <%= amount.round 5 %>
+    </div>
+  </div>
+  
+  <div class="p-1 text-lg text-slate-600 font-semibold text-end">
+    <%= asset_percentage coin, amount, @account.net_worth %>
+  </div>
+  
+  <hr>
+</div>
