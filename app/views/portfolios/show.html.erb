@@ -7,13 +7,14 @@
     <h1 class="text-4xl font-semibold">
       <%= @portfolio.name %>
     </h1>
-    <h2 class="text-lg font-lg">
-      Total Balance: <span class="font-semibold text-green-800"><%= number_to_currency @portfolio.total_balance %></span>
+    <h2 class="text-xl">
+      Total Balance: <span class="font-bold text-green-800"><%= number_to_currency @portfolio.total_balance %></span>
     </h2>
   </div>
   
   
-  <div class="">
+  <div id="buttons"
+       class="my-6">
     <%= link_to 'Manage', 
                 [:edit, @portfolio],
                 class: 'btn-primary' %>
@@ -21,13 +22,11 @@
                 [:new, @portfolio, :holding],
                 class: 'btn-primary' %>
   </div>
-  
-  <hr class="my-3">
-   
+     
   <div id="table-header" 
-       class="grid grid-cols-3 mb-2">
-    <div class="text-sm">Asset</div>
-    <div class="text-sm">Balance</div>
+       class="grid grid-cols-5 mt-7 mb-3">
+    <div class="text-sm col-span-2">Asset</div>
+    <div class="text-sm col-span-2 ps-6">Balance</div>
     <div class="text-sm">Proportion</div>
   </div>
   

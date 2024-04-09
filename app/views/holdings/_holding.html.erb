@@ -1,29 +1,29 @@
 <%= link_to [:edit, holding] do %>
-  <div class="grid grid-cols-3 gap-y-5 items-center">
-    <div class="p-1 flex flex-row gap-2 items-center">
-      <div>
+  <div class="p-1 grid grid-cols-5 items-center hover:bg-slate-200">
+    <div class="col-span-2 p-1 flex flex-row gap-3 items-baseline">
+      <div class="self-center">
         <img src="<%= holding.coin.icon %>%>"
             alt="<%= holding.coin.api_id %>%>_icon"
-            width="30">
+            class="bg-slate-50 rounded-full size-8 shadow">
       </div>
-      <div>
-        <p class="font-semibold text-base">
-          <%= holding.ticker %>
-        </p>
+      <div class="flex flex-col flex-1">
+        <div class="text-base font-semibold">
+          <p><%= holding.ticker %></p>
+        </div>
         <p class="text-sm">
           <%= number_to_currency holding.rate.round(2) %>
         </p>
-        <p class="text-xs">
+        <p class="text-xs font-light">
           <%= number_to_percentage holding.price_change, precision: 2 %>
         </p>
       </div>
     </div>
 
-    <div class="p-1">
-      <p>
+    <div class="p-1 col-span-2 ps-6">
+      <p class="text-lg font-bold text-green-800">
         <%= number_to_currency holding.value.round(2) %>
       </p>
-      <p  class="text-xs">
+      <p class="text-xs text-gray-600">
         <%= holding.amount.round 5 %>
       </p>
     </div>
