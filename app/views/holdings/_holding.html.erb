@@ -1,5 +1,7 @@
 <%= link_to [:edit, holding] do %>
-  <div class="p-1 grid grid-cols-5 items-center hover:bg-slate-200">
+  <div class="p-1 grid grid-cols-5 items-center hover:bg-slate-200"
+       data-controller="holdings"
+       data-holdings-delta-value="<%= holding.price_change %>">
     <div class="col-span-2 p-1 flex flex-row gap-3 items-baseline">
       <div class="self-center">
         <img src="<%= holding.coin.icon %>%>"
@@ -13,7 +15,8 @@
         <p class="text-sm">
           <%= number_to_currency holding.rate.round(2) %>
         </p>
-        <p class="text-xs font-light">
+        <p class="text-xs"
+           data-holdings-target="priceChange">
           <%= number_to_percentage holding.price_change, precision: 2 %>
         </p>
       </div>
