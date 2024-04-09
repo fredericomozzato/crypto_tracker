@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @layer components {
+  h1 {
+    @apply text-4xl font-semibold mb-2;
+  }
+  
+  h2 {
+    @apply text-xl mb-2;
+  }
+  
   .btn-primary {
     @apply px-5 py-2 font-semibold text-sm bg-slate-800 text-slate-100 rounded-md shadow hover:bg-slate-950;
   }
