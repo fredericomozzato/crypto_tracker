@@ -1,12 +1,14 @@
-<%= link_to 'Back', 
-            portfolios_path,
-            class: 'btn-primary' %>
 
 <section>
   <div class="my-3">
-    <h1 class="text-4xl font-semibold">
-      <%= @portfolio.name %>
-    </h1>
+    <div class="flex flex-row justify-between items-center">
+      <h1 class="text-4xl font-semibold">
+        <%= @portfolio.name %>
+      </h1>
+      <%= link_to 'Back',
+                  portfolios_path,
+                  class: 'btn-secondary' %>
+    </div>
     <h2 class="text-xl">
       Total Balance: <span class="font-bold text-green-800"><%= number_to_currency @portfolio.total_balance %></span>
     </h2>

@@ -4,6 +4,10 @@
 
 @layer components {
   .btn-primary {
-    @apply px-2 py-1 font-semibold text-sm bg-slate-800 text-slate-100 rounded-md shadow hover:bg-slate-950;
+    @apply px-5 py-2 font-semibold text-sm bg-slate-800 text-slate-100 rounded-md shadow hover:bg-slate-950;
+  }
+  
+  .btn-secondary {
+    @apply px-4 py-1 h-7 font-semibold text-sm bg-slate-400 text-slate-50 rounded-md shadow hover:bg-slate-800 hover:text-slate-100;
   }
 }
