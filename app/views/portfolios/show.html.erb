@@ -1,32 +1,40 @@
-<%= link_to 'Back', portfolios_path %>
 
 <section>
-  <div class="header">
-    <h1><%= @portfolio.name %></h1>
-    <%= link_to 'Manage', [:edit, @portfolio] %>
+  <div class="my-3">
+    <div class="flex flex-row justify-between items-center">
+      <h1 class="text-4xl font-semibold">
+        <%= @portfolio.name %>
+      </h1>
+      <%= link_to 'Back',
+                  portfolios_path,
+                  class: 'btn-secondary' %>
+    </div>
+    <h2 class="text-xl">
+      Total Balance: <span class="font-bold text-green-800"><%= number_to_currency @portfolio.total_balance %></span>
+    </h2>
   </div>
   
-  <h3>
-    Total Balance: <%= number_to_currency @portfolio.total_balance %>
-  </h3>
   
-  <div>
-    <%= link_to 'New Holding', new_portfolio_holding_path(@portfolio) %>
+  <div id="buttons"
+       class="my-6">
+    <%= link_to 'Manage', 
+                [:edit, @portfolio],
+                class: 'btn-primary' %>
+    <%= link_to 'New Holding', 
+                [:new, @portfolio, :holding],
+                class: 'btn-primary' %>
+  </div>
+     
+  <div id="table-header" 
+       class="grid grid-cols-5 mt-7 mb-3 text-slate-600 px-2">
+    <div class="text-sm col-span-2 ps-14">Asset</div>
+    <div class="text-sm col-span-2 ps-6">Balance</div>
+    <div class="text-sm">Proportion</div>
   </div>
   
-  <table class="table-auto border-collapse border">
-    <thead>
-      <trow>
-        <th class="border">Asset</th>
-        <th class="border">Rate</th>
-        <th class="border">Change 24h</th>
-        <th class="border">Amount</th>
-        <th class="border">USD</th>
-        <th class="border"></th>
-      </trow>
-    </thead>
-    <tbody>
-      <%= render @holdings %>
-    </tbody>
-  </table>
+  <hr>
+    
+  <div id="table-body">
+    <%= render @holdings %>
+  </div>
 </section>
