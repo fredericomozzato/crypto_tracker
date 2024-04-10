@@ -1,6 +1,6 @@
 module AssetsHelper
   def asset_value(coin, amount)
-    number_to_currency coin.rate * amount
+    number_format coin.rate * amount
   end
 
   def asset_percentage(coin, amount, net_worth)
