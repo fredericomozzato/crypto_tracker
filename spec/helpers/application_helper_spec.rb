@@ -1,12 +1,29 @@
 require 'rails_helper'
 
-RSpec.describe AssetsHelper, type: :helper do
-  describe '.asset_value' do
-    it 'returns formatted value in USD' do
-      coin   = create :coin, rate: 909.9
-      amount = 2.5
+RSpec.describe ApplicationHelper, type: :helper do
+  describe '.balance_format' do
+    it 'Returns original balance in the hundreds' do
+      balance = 123.45
 
-      expect(asset_value(coin, amount)).to eq '$2,274.75'
+      expect(balance_format(balance)).to eq '$123.45'
+    end
+
+    it 'Returns abbreviated balance in the thousands with K' do
+      balance = 1_234.56
+
+      expect(balance_format(balance)).to eq '$1.23K'
+    end
+
+    it 'Returns abbreviated balance in the millions with M' do
+      balance = 12_345_678.99
+
+      expect(balance_format(balance)).to eq '$12.35M'
+    end
+
+    it 'Returns abbreviated balance in the billions with B' do
+      balance = 1_234_567_899.99
+
+      expect(balance_format(balance)).to eq '$1.23B'
     end
   end
 

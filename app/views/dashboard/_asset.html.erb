@@ -27,7 +27,7 @@
   
   <div class="p-1 col-span-2 ps-6">
     <div class="text-lg font-bold text-green-800">
-      <%= asset_value coin, amount %>
+      <%= balance_format coin.rate * amount %>
     </div>
     
     <div class="text-xs text-slate-600">
