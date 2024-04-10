@@ -1,7 +1,12 @@
-<div class="form">
+<div class="px-2">
   <%= form_with model: portfolio do |f| %>
-    <%= f.label :name %>
-    <%= f.text_field :name %>
-    <%= f.submit %>
+    <div class="flex flex-col">
+      <%= f.text_field :name,
+                       placeholder: 'Name',
+                       class: 'form-control' %>
+    </div>
+    <div class="flex flex-col">
+      <%= f.submit class: 'btn-primary' %>
+    </div>
   <% end %>
 </div>

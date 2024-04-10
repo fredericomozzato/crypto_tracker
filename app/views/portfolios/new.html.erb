@@ -1,7 +1,11 @@
-<%= link_to 'Back', [:portfolios] %>
 
 <section>
-  <h1>New Portfolio</h1>
+  <div class="flex flex-row items-center justify-between px-2">
+    <h1>New Portfolio</h1>
+    <%= link_to 'Back',
+                [:portfolios],
+                class: 'btn-secondary' %>
+  </div>
   
   <%= render 'form', portfolio: @portfolio %>
 </section>
