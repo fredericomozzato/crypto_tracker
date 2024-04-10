@@ -1,13 +1,20 @@
-<%= link_to 'Back', [@portfolio] %>
 
 <section>
-  <h1>Edit portfolio</h1>
+  <div class="flex flex-row items-center justify-between px-2">
+    <h1>Edit portfolio</h1>
+    <%= link_to 'Back', 
+                [@portfolio],
+                class: 'btn-secondary' %>
+  </div>
   
   <%= render 'form', 
              portfolio: @portfolio %>
              
-  <%= button_to 'Delete',
-                @portfolio,
-                method: :delete,
-                data: { turbo_confirm: t('portfolios.delete_confirm') } %>
+  <div class="flex flex-col px-2 my-2">
+    <%= button_to 'Delete',
+                  @portfolio,
+                  method: :delete,
+                  class: 'btn-danger w-full',
+                  data: { turbo_confirm: t('portfolios.delete_confirm') } %>
+  </div>
 </section>
