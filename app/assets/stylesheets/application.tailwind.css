@@ -18,4 +18,8 @@
   .btn-secondary {
     @apply px-4 py-1 h-7 font-semibold text-sm bg-slate-500 text-slate-50 rounded-md shadow hover:bg-slate-800 hover:text-slate-100;
   }
+  
+  .form-control {
+    @apply bg-slate-50 border border-slate-300 rounded-lg shadow-inner py-1 px-2 my-3;
+  }
 }
