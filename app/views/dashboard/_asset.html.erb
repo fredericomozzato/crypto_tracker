@@ -1,4 +1,4 @@
-<div class="py-2 px-2 grid grid-cols-5 items-start">
+<div class="py-2 px-2 grid grid-cols-5 items-start border-t">
   <div data-controller="holdings"
        data-holdings-change-value="<%= coin.price_change %>"
        class="col-span-2 p-1 flex flex-row gap-3 items-baseline">
@@ -27,11 +27,11 @@
   
   <div class="p-1 col-span-2 ps-6">
     <div class="text-lg font-bold text-green-800">
-      <%= asset_value coin, amount %>
+      <%= balance_format coin.rate * amount %>
     </div>
     
     <div class="text-xs text-slate-600">
-      <%= amount.round 5 %>
+      <%= number_with_delimiter amount.round(5) %>
     </div>
   </div>
   
@@ -39,5 +39,4 @@
     <%= asset_percentage coin, amount, @account.net_worth %>
   </div>
   
-  <hr>
 </div>

@@ -17,9 +17,7 @@
   </div>
   
   <%= render partial: 'shared/table_header' %>
-  
-  <hr>
-  
+
   <div>
     <% @account.assets.each_pair do |coin, amount| %>
       <%= render partial: 'asset', 

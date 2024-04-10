@@ -1,18 +1,33 @@
-<%= link_to 'Back', [:dashboard] %>
-
 <section>
-  <h1>Portfolios</h1>
+  <div class="flex flex-row justify-between items-center my-3">
+    <h1>Portfolios</h1>
+    <%= link_to 'Back',
+                [:dashboard],
+                class: 'btn-secondary' %>
+  </div>
 
-  <%= link_to 'New Portfolio', [:new, :portfolio] %>
+  <div class="my-6">
+    <%= link_to 'New Portfolio', 
+                [:new, :portfolio],
+                class: 'btn-primary' %>
+  </div>
   
-  <div>
-    <ul>
-      <% @portfolios.each do |portfolio| %>
-        <li>
-          <%= link_to portfolio.name, [portfolio] %>
-          <%= number_to_currency portfolio.total_balance %>
-        </li>
+  <div class="px-2">
+    <div class="flex flex-row justify-between text-slate-600 text-sm mb-3 ms-2 me-2">
+      <p>Name</p>
+      <p>Balance</p>
+    </div>
+    <% @portfolios.each do |portfolio| %>
+      <%= link_to [portfolio] do %>
+        <div class="flex flex-row items-center justify-between py-3 px-2 border-t hover:bg-slate-200 hover:shadow-md">
+          <h2 class="text-slate-950">
+            <%= portfolio.name.truncate 24 %>
+          </h2>
+          <h2 class="text-green-800 font-bold">
+            <%= balance_format portfolio.total_balance %>
+          </h2>
+        </div>
       <% end %>
-    </ul>
+    <% end %>
   </div>
 </section>

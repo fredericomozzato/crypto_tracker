@@ -1,7 +1,7 @@
 <%= link_to [:edit, holding] do %>
   <div data-controller="holdings"
        data-holdings-change-value="<%= holding.price_change %>"
-       class="py-2 px-2 grid grid-cols-5 items-start hover:shadow-md hover:bg-slate-200">
+       class="p-2 grid grid-cols-5 items-start hover:shadow-md hover:bg-slate-200">
     <div class="col-span-2 p-1 flex flex-row gap-3 items-baseline">
       <div class="self-center">
         <img src="<%= holding.coin.icon %>"
@@ -28,11 +28,11 @@
 
     <div class="p-1 col-span-2 ps-6">
       <div class="text-lg font-bold text-green-800">
-        <%= number_to_currency holding.value.round(2) %>
+        <%= balance_format holding.value %>
       </div>
       
       <div class="text-xs text-slate-600">
-        <%= holding.amount.round 5 %>
+        <%= number_with_delimiter holding.amount.round(5) %>
       </div>
     </div>
     
