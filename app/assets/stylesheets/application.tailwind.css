@@ -24,6 +24,6 @@
   }
   
   .form-control {
-    @apply bg-slate-50 border border-slate-300 rounded-lg shadow-inner py-1 px-2 my-3 hover:border-slate-400;
+    @apply bg-slate-50 border border-slate-300 rounded-lg shadow-inner py-1 px-2 my-3 hover:border-slate-400 focus:outline-none focus:ring focus:ring-slate-400;
   }
 }
