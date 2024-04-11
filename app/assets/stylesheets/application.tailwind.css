@@ -12,7 +12,7 @@
   }
   
   .btn-primary {
-    @apply px-5 py-2 font-semibold text-sm bg-slate-800 text-slate-100 rounded-md shadow hover:bg-slate-950;
+    @apply px-5 py-2 font-semibold text-sm bg-slate-800 text-slate-100 rounded-md shadow hover:bg-slate-950 hover:shadow-lg;
   }
   
   .btn-secondary {
@@ -24,6 +24,6 @@
   }
   
   .form-control {
-    @apply bg-slate-50 border border-slate-300 rounded-lg shadow-inner py-1 px-2 my-3;
+    @apply bg-slate-50 border border-slate-300 rounded-lg shadow-inner py-1 px-2 my-3 hover:border-slate-400;
   }
 }
