@@ -6,8 +6,8 @@
       <%= f.email_field :email,
                         autofocus: true,
                         autocomplete: "email",
-                        placeholder: 'E-mail',
-                        class: 'form-control' %>
+                        placeholder: "E-mail",
+                        class: "form-control" %>
     </div>
   
     <div class="field flex flex-col">
@@ -28,9 +28,11 @@
   
     <div class="actions flex">
       <%= f.submit "Log in",
-                   class: 'btn-primary w-full' %>
+                   class: "btn-primary w-full" %>
     </div>
   <% end %>
   
-  <%= render "devise/shared/links" %>
+  <div class="flex flex-col gap-2 my-2">
+    <%= render "devise/shared/links" %>
+  </div>
 </section>
