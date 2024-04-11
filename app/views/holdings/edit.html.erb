@@ -1,36 +1,70 @@
-<%= link_to 'Back', @holding.portfolio %>
 
-<section>
-  <h1>Edit Holding</h1>
+<section class="px-2">
+  <div class="flex flex-row items-center justify-between mb-2">
+    <div class="flex flex-row gap-2 items-baseline">
+      <div class="size-8 shadow-md rounded-full">
+        <img src="<%= @holding.coin.icon %>"
+             alt="<%= @holding.coin.api_id %>_icon">
+      </div>
+      <h1><%= @holding.ticker %></h1>
+    </div>
+    <%= link_to 'Back', 
+                @holding.portfolio,
+                class: 'btn-secondary' %>
+  </div>
   
-  <h3><%= @holding.ticker %> <%= @holding.amount %></h3>
+  <h2> 
+      Balance: 
+      <span class="font-bold text-green-800"><%= @holding.amount %></span>
+  </h2>
   
   <%= form_with model: @holding do |f| %>
-    <div>
-      <%= f.radio_button :operation,
-                         'deposit',
-                         checked: true %>
-      <%= f.label :operation_deposit,
-                  'Deposit' %>
-      <%= f.radio_button :operation,
-                         'withdraw' %>
-      <%= f.label :operation_withdraw,
-                  'Withdraw' %>
-      <%= f.radio_button :operation,
-                         :update %>
-      <%= f.label :operation_update,
-                  'Update' %>
+    <ul class="flex flex-row justify-between ">
+      <li>
+        <%= f.radio_button :operation,
+                           'deposit',
+                           class: 'hidden peer/deposit' %>
+        <%= f.label :operation_deposit,
+                    class: 'border py-1 px-6 text-center cursor-pointer p-1 rounded-md shadow bg-slate-100 text-slate-500 font-semibold border-1 border-slate-200 hover:bg-slate-50 hover:text-green-800 peer-checked/deposit:text-green-800 peer-checked/deposit:border-slate-300 peer-checked/deposit:shadow-inner peer-checked/deposit:bg-slate-50' do %>
+          Deposit
+        <% end %>
+      </li>
+      <li>
+        <%= f.radio_button :operation,
+                           'withdraw',
+                           class: 'hidden peer/withdraw' %>
+        <%= f.label :operation_withdraw,
+                    class: 'border py-1 px-6 text-center cursor-pointer p-1 rounded-md shadow bg-slate-100 text-slate-500 font-semibold border-1 border-slate-200 hover:bg-slate-50 hover:text-red-800 peer-checked/withdraw:text-red-800 peer-checked/withdraw:border-slate-300 peer-checked/withdraw:shadow-inner peer-checked/withdraw:bg-slate-50' do %>
+          Withdraw
+        <% end %>
+      </li>
+      <li>
+        <%= f.radio_button :operation,
+                           :update,
+                           class: 'hidden peer/update' %>
+        <%= f.label :operation_update, 
+                    class: 'border py-1 px-6 text-center cursor-pointer p-1 rounded-md shadow bg-slate-100 text-slate-500 font-semibold border-1 border-slate-200 hover:bg-slate-50 hover:text-slate-800 peer-checked/update:text-slate-800 peer-checked/update:shadow-inner peer-checked/update:bg-slate-50 peer-checked/update:border-slate-300' do |label| %>
+            Update
+        <% end %>
+      </li>
+    </ul>
+    <div class="flex flex-col mb-2">
+      
+      <%= f.number_field :amount,
+                         value: 0.0,
+                         step: 0.00000001,
+                         class: 'form-control' %>
+      <%= f.submit 'Save',
+                    class: 'btn-primary' %>
     </div>
-    <%= f.label :amount %>
-    <%= f.number_field :amount, 
-                       value: 0.0,
-                       step: 0.00000001 %>
-    <%= f.submit 'Save' %>
   <% end %>
   
-  <%= button_to 'Delete',
-                @holding,
-                method: :delete,
-                data: { turbo_confirm: t('holdings.delete_confirm',
-                                       ticker: @holding.ticker) } %>
+  <div class="flex flex-col">
+    <%= button_to 'Delete',
+                  @holding,
+                  method: :delete,
+                  data: { turbo_confirm: t('holdings.delete_confirm',
+                                         ticker: @holding.ticker) },
+                  class: 'btn-danger w-full' %>
+  </div>
 </section>

@@ -12,15 +12,15 @@
   }
   
   .btn-primary {
-    @apply px-5 py-2 font-semibold text-sm bg-slate-800 text-slate-100 rounded-md shadow hover:bg-slate-950 hover:shadow-lg;
+    @apply px-5 py-2 font-semibold text-sm bg-slate-800 text-slate-100 rounded-md shadow cursor-pointer hover:bg-slate-950 hover:shadow-lg;
   }
   
   .btn-secondary {
-    @apply px-4 py-1 h-7 font-semibold text-sm bg-slate-500 text-slate-50 rounded-md shadow hover:bg-slate-800 hover:text-slate-100;
+    @apply px-4 py-1 h-7 font-semibold text-sm bg-slate-500 text-slate-50 rounded-md shadow cursor-pointer hover:bg-slate-800 hover:text-slate-100;
   }
   
   .btn-danger {
-    @apply px-5 py-2 font-semibold text-sm bg-red-800 text-slate-100 rounded-md shadow hover:bg-red-900;
+    @apply px-5 py-2 font-semibold text-sm bg-red-800 text-slate-100 rounded-md shadow cursor-pointer hover:bg-red-900;
   }
   
   .form-control {
