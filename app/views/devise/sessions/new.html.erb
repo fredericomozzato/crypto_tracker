@@ -13,15 +13,16 @@
     <div class="field flex flex-col">
       <%= f.password_field :password,
                            autocomplete: "current-password",
-                           placeholder: 'Password (Min 6 characters)',
-                           class: 'form-control' %>
+                           placeholder: "Password",
+                           class: "form-control" %>
     </div>
   
     <% if devise_mapping.rememberable? %>
-      <div class="field my-3">
+      <div class="field mb-3 text-slate-600 hover:text-slate-800 cursor-pointer">
         <%= f.check_box :remember_me,
-                        class: 'accent-slate-700 ring-transparent' %>
-        <%= f.label :remember_me %>
+                        class: "accent-slate-700 ring-transparent cursor-pointer" %>
+        <%= f.label :remember_me,
+                    class: "cursor-pointer" %>
       </div>
     <% end %>
   
