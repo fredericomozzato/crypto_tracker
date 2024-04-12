@@ -12,7 +12,7 @@
   }
   
   .btn-primary {
-    @apply px-5 py-2 font-semibold text-base bg-slate-800 text-slate-100 rounded-md shadow-sm cursor-pointer hover:bg-slate-950 hover:shadow-lg;
+    @apply px-5 py-2 font-semibold text-base bg-slate-800 text-slate-100 rounded-md shadow-sm cursor-pointer hover:bg-slate-950 hover:text-slate-50;
   }
   
   .btn-secondary {

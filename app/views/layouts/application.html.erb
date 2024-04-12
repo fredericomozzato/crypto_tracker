@@ -10,7 +10,9 @@
     <%= javascript_include_tag "application", "data-turbo-track": "reload", type: "module" %>
   </head>
 
-  <body class="container mx-auto p-2 text-slate-800 bg-slate-100">
+  <body class="container text-slate-800 bg-slate-100">
+
+    <%= render "layouts/navbar" %>
     
     <div>
       <% if flash[:notice] %>
@@ -20,6 +22,8 @@
       <% end %>
     </div>
     
-    <%= yield %>
+    <div class="mx-auto p-2 mt-9">
+      <%= yield %>
+    </div>
   </body>
 </html>

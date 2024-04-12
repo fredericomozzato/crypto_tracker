@@ -1,0 +1,20 @@
+<nav id="navbar"
+     class="flex items-baseline bg-gradient-to-b from-slate-900 to-slate-800 w-full fixed top-0 left-0 right-0 px-2 py-3 shadow">
+  <div class="w-full flex items-center justify-between">
+    <%= link_to "CryptoTracker", 
+                root_path,
+                title: "Home",
+                class: "text-slate-200 text-base font-semibold hover:underline hover:text-slate-100" %>
+    
+    <% if current_user %>
+      <%= button_to "Sign out",
+                    destroy_user_session_path,
+                    method: :delete,
+                    class: "text-slate-200 text-base hover:underline" %>
+    <% else %>
+      <%= link_to "Sign in",
+                  new_user_session_path,
+                  class: "text-slate-200 text-base hover:underline" %>
+    <% end %>
+  </div>
+</nav>
