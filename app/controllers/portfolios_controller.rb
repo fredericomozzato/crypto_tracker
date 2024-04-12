@@ -25,6 +25,7 @@ class PortfoliosController < ApplicationController
 
   def show
     @holdings = @portfolio.holdings
+                          .includes(:coin)
                           .sort_by(&:value)
                           .reverse
   end
