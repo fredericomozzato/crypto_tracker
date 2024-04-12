@@ -13,7 +13,9 @@ class Account < ApplicationRecord
   end
 
   def assets
-    holdings.group(:coin).sum(:amount)
+    holdings.includes(:coin)
+            .group(:coin)
+            .sum(:amount)
   end
 
   private
