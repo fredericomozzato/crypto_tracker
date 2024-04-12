@@ -1,0 +1,38 @@
+<section class="px-2">
+  <h1>Log in</h1>
+  
+  <%= form_for(resource, as: resource_name, url: session_path(resource_name)) do |f| %>
+    <div class="field flex flex-col">
+      <%= f.email_field :email,
+                        autofocus: true,
+                        autocomplete: "email",
+                        placeholder: "E-mail",
+                        class: "form-control" %>
+    </div>
+  
+    <div class="field flex flex-col">
+      <%= f.password_field :password,
+                           autocomplete: "current-password",
+                           placeholder: "Password",
+                           class: "form-control" %>
+    </div>
+  
+    <% if devise_mapping.rememberable? %>
+      <div class="field mb-3 text-slate-600 hover:text-slate-800 cursor-pointer">
+        <%= f.check_box :remember_me,
+                        class: "accent-slate-700 ring-transparent cursor-pointer" %>
+        <%= f.label :remember_me,
+                    class: "cursor-pointer" %>
+      </div>
+    <% end %>
+  
+    <div class="actions flex">
+      <%= f.submit "Log in",
+                   class: "btn-primary w-full" %>
+    </div>
+  <% end %>
+  
+  <div class="flex flex-col gap-2 my-2">
+    <%= render "devise/shared/links" %>
+  </div>
+</section>

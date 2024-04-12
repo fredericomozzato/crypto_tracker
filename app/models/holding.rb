@@ -20,6 +20,8 @@ class Holding < ApplicationRecord
   end
 
   def proportion
+    return 0 if portfolio.total_balance.zero?
+
     (value / portfolio.total_balance * 100).round 2
   end
 end

@@ -97,5 +97,13 @@ RSpec.describe Holding, type: :model do
       expect(holding_b.proportion).to eq 36.36
       expect(holding_c.proportion).to eq 40.91
     end
+
+    it 'Returns 0.0 if portfolio has no balance' do
+      coin_a    = create :coin, rate: 1.11
+      portfolio = create :portfolio
+      holding_a = create :holding, portfolio:, coin: coin_a, amount: 0
+
+      expect(holding_a.proportion).to eq 0.0
+    end
   end
 end
