@@ -1,3 +1,7 @@
+---
+status: doing
+---
+
 # Slice 1 — Skeleton App
 
 ## Context
