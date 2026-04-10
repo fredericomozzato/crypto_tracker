@@ -4,7 +4,9 @@ fmt:
 	gofumpt -w .
 
 lint:
+	gofumpt -l . | grep . && exit 1 || true
 	golangci-lint run ./...
+	govulncheck ./...
 
 test:
 	go test -race -coverprofile=coverage.out ./...
