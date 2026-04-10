@@ -9,11 +9,11 @@ import (
 
 func TestNewAppModel(t *testing.T) {
 	m := NewAppModel()
-	if m.width != 0 {
-		t.Errorf("expected width 0, got %d", m.width)
-	}
-	if m.height != 0 {
-		t.Errorf("expected height 0, got %d", m.height)
+	// Verify the model renders without panicking; a zero-dimension model
+	// should still produce output (the "too small" message).
+	view := m.View()
+	if view == "" {
+		t.Error("expected non-empty View from NewAppModel, got empty string")
 	}
 }
 
