@@ -22,7 +22,8 @@ func realMain() int {
 	debug := flag.Bool("debug", false, "enable file logging")
 	flag.Parse()
 
-	setupLogger(*debug)
+	cleanup := setupLogger(*debug)
+	defer cleanup()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
@@ -42,24 +43,26 @@ func realMain() int {
 	return 0
 }
 
-func setupLogger(debug bool) {
+func setupLogger(debug bool) func() {
 	if debug {
 		logPath := logFilePath()
 		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
 			slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
-			return
+			return func() {}
 		}
 
 		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 		if err != nil {
 			slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
-			return
+			return func() {}
 		}
 
 		slog.SetDefault(slog.New(slog.NewTextHandler(f, nil)))
-	} else {
-		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+		return func() { f.Close() }
 	}
+
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return func() {}
 }
 
 func logFilePath() string {
