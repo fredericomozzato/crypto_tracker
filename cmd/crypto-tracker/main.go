@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -45,7 +46,12 @@ func realMain() int {
 
 func setupLogger(debug bool) func() {
 	if debug {
-		logPath := logFilePath()
+		logPath, err := logFilePath()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+			return func() {}
+		}
 		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
 			slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
 			return func() {}
@@ -58,18 +64,25 @@ func setupLogger(debug bool) func() {
 		}
 
 		slog.SetDefault(slog.New(slog.NewTextHandler(f, nil)))
-		return func() { f.Close() }
+		return func() {
+			if err := f.Close(); err != nil {
+				slog.Error("closing log file", "error", err)
+			}
+		}
 	}
 
 	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return func() {}
 }
 
-func logFilePath() string {
+func logFilePath() (string, error) {
 	stateDir := os.Getenv("XDG_STATE_HOME")
 	if stateDir == "" {
-		home, _ := os.UserHomeDir()
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("determining home directory: %w", err)
+		}
 		stateDir = filepath.Join(home, ".local", "state")
 	}
-	return filepath.Join(stateDir, "crypto_tracker", "app.log")
+	return filepath.Join(stateDir, "crypto_tracker", "app.log"), nil
 }
