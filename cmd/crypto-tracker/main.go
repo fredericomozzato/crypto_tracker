@@ -1,0 +1,72 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"io"
+	"log/slog"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fredericomozzato/crypto_tracker/internal/ui"
+)
+
+func main() {
+	os.Exit(realMain())
+}
+
+func realMain() int {
+	debug := flag.Bool("debug", false, "enable file logging")
+	flag.Parse()
+
+	setupLogger(*debug)
+
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	model := ui.NewAppModel()
+
+	p := tea.NewProgram(
+		model,
+		tea.WithAltScreen(),
+		tea.WithContext(ctx),
+	)
+
+	if _, err := p.Run(); err != nil {
+		slog.Error("program exited with error", "error", err)
+		return 1
+	}
+	return 0
+}
+
+func setupLogger(debug bool) {
+	if debug {
+		logPath := logFilePath()
+		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+			slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+			return
+		}
+
+		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+		if err != nil {
+			slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+			return
+		}
+
+		slog.SetDefault(slog.New(slog.NewTextHandler(f, nil)))
+	} else {
+		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	}
+}
+
+func logFilePath() string {
+	stateDir := os.Getenv("XDG_STATE_HOME")
+	if stateDir == "" {
+		home, _ := os.UserHomeDir()
+		stateDir = filepath.Join(home, ".local", "state")
+	}
+	return filepath.Join(stateDir, "crypto_tracker", "app.log")
+}

@@ -1,0 +1,16 @@
+version: "2"
+linters:
+  enable:
+    - errcheck
+    - staticcheck
+    - gocritic
+    - noctx
+
+linters-settings:
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+
+issues:
+  exclude-use-default: false
