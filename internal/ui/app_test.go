@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -77,12 +78,12 @@ func TestViewRendersPlaceholder(t *testing.T) {
 
 	// Check that the placeholder text is present
 	expected := "crypto-tracker"
-	if !contains(view, expected) {
+	if !strings.Contains(view, expected) {
 		t.Errorf("expected view to contain %q, got %q", expected, view)
 	}
 
 	expectedQuit := "press q to quit"
-	if !contains(view, expectedQuit) {
+	if !strings.Contains(view, expectedQuit) {
 		t.Errorf("expected view to contain %q, got %q", expectedQuit, view)
 	}
 }
@@ -97,18 +98,4 @@ func TestIgnoresOtherKeys(t *testing.T) {
 			t.Errorf("expected nil cmd for key %q, got non-nil cmd", key)
 		}
 	}
-}
-
-// contains checks if s contains substr (simple substring check).
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
