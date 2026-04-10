@@ -1,4 +1,4 @@
-# CLAUDE.md — crypto_tracker
+# AGENTS.md — crypto_tracker
 
 Terminal UI for tracking crypto market data and managing portfolios. Built in Go
 with Bubble Tea, backed by CoinGecko API and a local SQLite database.
