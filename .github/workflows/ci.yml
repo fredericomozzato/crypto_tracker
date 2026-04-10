@@ -7,21 +7,16 @@ on:
     branches: [main]
 
 jobs:
-  check:
-    name: Check
+  fmt:
+    name: Format
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: "1.24"
-
       - name: Install gofumpt
         run: go install mvdan.cc/gofumpt@latest
-
       - name: Check formatting
         run: |
           unformatted=$(gofumpt -l .)
@@ -32,13 +27,35 @@ jobs:
             exit 1
           fi
 
-      - name: Lint
-        uses: golangci/golangci-lint-action@v7
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: golangci/golangci-lint-action@v7
         with:
           version: v2.11.4
 
-      - name: Test
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Run tests
         run: go test -race -coverprofile=coverage.out ./...
 
-      - name: Vulnerability check
-        uses: golang/govulncheck-action@v1
+  vuln:
+    name: Vulnerability check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: golang/govulncheck-action@v1
