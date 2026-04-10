@@ -24,7 +24,7 @@ Read these before implementing anything:
 | Database    | `modernc.org/sqlite` (pure Go)      |
 | API         | CoinGecko REST (`net/http`)         |
 
-- **Go version:** 1.23
+- **Go version:** 1.24
 - **Module path:** `github.com/fredericomozzato/crypto_tracker`
 - **SQL:** Raw SQL with `go:embed` for schema. No ORM, no sqlc.
 - **Platforms:** macOS and Linux. Windows is not supported.
