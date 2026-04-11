@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -412,7 +413,7 @@ func TestInitFetchesHundredCoinsOnFirstLaunch(t *testing.T) {
 }
 
 func TestInitLoadsFromDBOnSubsequentLaunch(t *testing.T) {
-	coins := threeCoins()
+	coins := makeCoins(100)
 	api := &StubAPI{coins: coins}
 	s := &StubStore{coins: coins}
 	m := NewAppModel(context.Background(), s, api)
@@ -424,20 +425,52 @@ func TestInitLoadsFromDBOnSubsequentLaunch(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected coinsLoadedMsg, got %T: %v", msg, msg)
 	}
-	if len(loaded.coins) != 3 {
-		t.Errorf("expected 3 coins from DB, got %d", len(loaded.coins))
+	if len(loaded.coins) != 100 {
+		t.Errorf("expected 100 coins from DB, got %d", len(loaded.coins))
 	}
 	if len(api.fetchMarketsCalls) != 0 {
 		t.Errorf("expected no API calls, got %v", api.fetchMarketsCalls)
 	}
 }
 
-func threeCoins() []store.Coin {
-	return []store.Coin{
-		{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000, MarketRank: 1},
-		{ApiID: "ethereum", Name: "Ethereum", Ticker: "ETH", Rate: 3500, MarketRank: 2},
-		{ApiID: "solana", Name: "Solana", Ticker: "SOL", Rate: 150, MarketRank: 3},
+func TestInitRefetchesWhenDBPartiallySeeded(t *testing.T) {
+	partial := makeCoins(10)
+	full := makeCoins(100)
+	api := &StubAPI{coins: full}
+	s := &StubStore{coins: partial}
+	m := NewAppModel(context.Background(), s, api)
+
+	cmd := m.Init()
+	msg := cmd()
+
+	loaded, ok := msg.(coinsLoadedMsg)
+	if !ok {
+		t.Fatalf("expected coinsLoadedMsg, got %T: %v", msg, msg)
 	}
+	if len(loaded.coins) != 100 {
+		t.Errorf("expected 100 coins after refetch, got %d", len(loaded.coins))
+	}
+	if len(api.fetchMarketsCalls) != 1 || api.fetchMarketsCalls[0] != 100 {
+		t.Errorf("expected FetchMarkets called with 100, got %v", api.fetchMarketsCalls)
+	}
+}
+
+func threeCoins() []store.Coin {
+	return makeCoins(3)
+}
+
+func makeCoins(n int) []store.Coin {
+	coins := make([]store.Coin, n)
+	for i := range coins {
+		coins[i] = store.Coin{
+			ApiID:      fmt.Sprintf("coin-%d", i+1),
+			Name:       fmt.Sprintf("Coin %d", i+1),
+			Ticker:     fmt.Sprintf("C%d", i+1),
+			Rate:       float64((i + 1) * 100),
+			MarketRank: i + 1,
+		}
+	}
+	return coins
 }
 
 func setupCursorModel(t *testing.T, coins []store.Coin) AppModel {

@@ -58,7 +58,7 @@ func (m AppModel) Init() tea.Cmd {
 		if err != nil {
 			return errMsg{err: fmt.Errorf("loading coins: %w", err)}
 		}
-		if len(existing) > 0 {
+		if len(existing) >= 100 {
 			return coinsLoadedMsg{coins: existing}
 		}
 
