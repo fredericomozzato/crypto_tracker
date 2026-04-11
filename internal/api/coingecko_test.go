@@ -7,8 +7,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/fredericomozzato/crypto_tracker/internal/store"
 )
 
 func TestFetchMarketsSuccess(t *testing.T) {
@@ -193,31 +191,6 @@ func TestFetchMarketsWithAPIKey(t *testing.T) {
 
 // Ensure HTTPClient implements CoinGeckoClient interface
 var _ CoinGeckoClient = (*HTTPClient)(nil)
-
-// StubStore implements store.Store for testing
-type StubStore struct {
-	coins []store.Coin
-	err   error
-}
-
-func (s *StubStore) UpsertCoin(ctx context.Context, c store.Coin) error {
-	return s.err
-}
-
-func (s *StubStore) GetAllCoins(ctx context.Context) ([]store.Coin, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-	return s.coins, nil
-}
-
-func (s *StubStore) Close() error {
-	return nil
-}
-
-func (s *StubStore) UpdatePrices(ctx context.Context, prices map[string]float64) error {
-	return s.err
-}
 
 // FetchPrices tests
 
