@@ -47,6 +47,9 @@ type pricesUpdatedMsg struct {
 // tickMsg fires every 5 seconds from cmdTick.
 type tickMsg time.Time
 
+// staleThreshold is the duration after which data is considered stale.
+const staleThreshold = 5 * time.Minute
+
 // NewAppModel creates a new AppModel with the given dependencies.
 func NewAppModel(ctx context.Context, s store.Store, c api.CoinGeckoClient) AppModel {
 	return AppModel{
@@ -270,7 +273,7 @@ func (m AppModel) View() string {
 // statusRight returns the right-hand portion of the status bar.
 func (m AppModel) statusRight() string {
 	if m.refreshing {
-		return "refreshing..."
+		return "Refreshing"
 	}
 	if m.lastErr != "" {
 		return "error: " + m.lastErr
@@ -278,15 +281,10 @@ func (m AppModel) statusRight() string {
 	if m.lastRefreshed.IsZero() {
 		return "loading..."
 	}
-	elapsed := time.Since(m.lastRefreshed)
-	switch {
-	case elapsed < time.Minute:
-		return fmt.Sprintf("synced %ds ago", int(elapsed.Seconds()))
-	case elapsed < time.Hour:
-		return fmt.Sprintf("synced %dm ago", int(elapsed.Minutes()))
-	default:
-		return fmt.Sprintf("synced %dh ago", int(elapsed.Hours()))
+	if time.Since(m.lastRefreshed) > staleThreshold {
+		return "Stale"
 	}
+	return "Synced"
 }
 
 // renderStatusBar returns a two-sided status bar with hints on the left and
@@ -295,13 +293,20 @@ func (m AppModel) renderStatusBar() string {
 	leftContent := "j/k navigate • g/G top/bottom • r refresh • q quit"
 	rightContent := m.statusRight()
 
-	grayStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
-	errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF4444"))
+	grayStyle   := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
+	errStyle    := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF4444"))
+	greenStyle  := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
+	yellowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
 
 	var rightStyled string
-	if m.lastErr != "" && !m.refreshing {
+	switch rightContent {
+	case "Synced":
+		rightStyled = greenStyle.Render(rightContent)
+	case "Stale":
+		rightStyled = yellowStyle.Render(rightContent)
+	case "error: " + m.lastErr:
 		rightStyled = errStyle.Render(rightContent)
-	} else {
+	default:
 		rightStyled = grayStyle.Render(rightContent)
 	}
 

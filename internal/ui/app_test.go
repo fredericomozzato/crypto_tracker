@@ -756,8 +756,8 @@ func TestStatusBarShowsRefreshing(t *testing.T) {
 	m.lastRefreshed = time.Now()
 
 	right := m.statusRight()
-	if right != "refreshing..." {
-		t.Errorf("expected statusRight 'refreshing...', got %q", right)
+	if right != "Refreshing" {
+		t.Errorf("expected statusRight 'Refreshing', got %q", right)
 	}
 }
 
@@ -777,18 +777,33 @@ func TestStatusBarShowsError(t *testing.T) {
 	}
 }
 
-func TestStatusBarShowsSyncedAgo(t *testing.T) {
+func TestStatusBarShowsSynced(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
 	m := NewAppModel(context.Background(), stub, api)
 	m.width = 100
 	m.height = 30
 	m.coins = threeCoins()
-	m.lastRefreshed = time.Now().Add(-25 * time.Second)
+	m.lastRefreshed = time.Now()
 
 	right := m.statusRight()
-	if !strings.Contains(right, "synced") || !strings.Contains(right, "ago") {
-		t.Errorf("expected statusRight to contain 'synced' and 'ago', got %q", right)
+	if right != "Synced" {
+		t.Errorf("expected statusRight 'Synced', got %q", right)
+	}
+}
+
+func TestStatusBarShowsStale(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now().Add(-6 * time.Minute)
+
+	right := m.statusRight()
+	if right != "Stale" {
+		t.Errorf("expected statusRight 'Stale', got %q", right)
 	}
 }
 
