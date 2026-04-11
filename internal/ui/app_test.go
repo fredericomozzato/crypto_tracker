@@ -731,3 +731,97 @@ func TestPricesUpdatedSetsLastRefreshed(t *testing.T) {
 		t.Error("expected refreshing to be false after pricesUpdatedMsg")
 	}
 }
+
+func TestStatusBarShowsLoading(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	right := m.statusRight()
+	if right != "loading..." {
+		t.Errorf("expected statusRight 'loading...', got %q", right)
+	}
+}
+
+func TestStatusBarShowsRefreshing(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.refreshing = true
+	m.lastRefreshed = time.Now()
+
+	right := m.statusRight()
+	if right != "refreshing..." {
+		t.Errorf("expected statusRight 'refreshing...', got %q", right)
+	}
+}
+
+func TestStatusBarShowsError(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.lastErr = "some error"
+	m.lastRefreshed = time.Now()
+
+	right := m.statusRight()
+	if right != "error: some error" {
+		t.Errorf("expected statusRight 'error: some error', got %q", right)
+	}
+}
+
+func TestStatusBarShowsSyncedAgo(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now().Add(-25 * time.Second)
+
+	right := m.statusRight()
+	if !strings.Contains(right, "synced") || !strings.Contains(right, "ago") {
+		t.Errorf("expected statusRight to contain 'synced' and 'ago', got %q", right)
+	}
+}
+
+func TestTableRendersWhileError(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now()
+	m.lastErr = "network failed"
+
+	view := m.View()
+	if !strings.Contains(view, "Coin 1") {
+		t.Error("expected view to contain coin names even with error")
+	}
+	if !strings.Contains(view, "error: network failed") {
+		t.Error("expected view to contain error text")
+	}
+}
+
+func TestStatusBarHasHintsOnLeft(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now()
+
+	view := m.View()
+	if !strings.Contains(view, "j/k navigate") {
+		t.Errorf("expected view to contain 'j/k navigate', got %q", view)
+	}
+}

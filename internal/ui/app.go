@@ -197,18 +197,8 @@ func (m AppModel) cmdRefresh() tea.Cmd {
 
 // View renders the current state of the app.
 func (m AppModel) View() string {
-	// Check minimum terminal size
 	if m.width < 100 || m.height < 30 {
 		return "Terminal too small — resize to at least 100×30"
-	}
-
-	switch {
-	case m.lastErr != "":
-		return lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF0000")).
-			Render("Error: " + m.lastErr)
-	case len(m.coins) == 0:
-		return "loading..."
 	}
 
 	h := m.tableHeight()
@@ -217,7 +207,10 @@ func (m AppModel) View() string {
 		end = len(m.coins)
 	}
 
-	// Column widths
+	if len(m.coins) == 0 {
+		return "loading...\n" + m.renderStatusBar()
+	}
+
 	wRank := 4
 	wName := 22
 	wTicker := 8
@@ -228,7 +221,6 @@ func (m AppModel) View() string {
 	green := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
 	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
 
-	// Header
 	header := fmt.Sprintf(
 		"%*s  %-*s  %-*s  %*s  %*s",
 		wRank, "#",
@@ -268,17 +260,57 @@ func (m AppModel) View() string {
 		lines = append(lines, line)
 	}
 
-	// Pad remaining rows
 	for len(lines)-1 < h {
 		lines = append(lines, "")
 	}
 
-	// Hint line
-	hint := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#888888")).
-		Render("j/k navigate • g/G top/bottom • r refresh • q quit")
+	return strings.Join(lines, "\n") + "\n" + m.renderStatusBar()
+}
 
-	return strings.Join(lines, "\n") + "\n" + hint
+// statusRight returns the right-hand portion of the status bar.
+func (m AppModel) statusRight() string {
+	if m.refreshing {
+		return "refreshing..."
+	}
+	if m.lastErr != "" {
+		return "error: " + m.lastErr
+	}
+	if m.lastRefreshed.IsZero() {
+		return "loading..."
+	}
+	elapsed := time.Since(m.lastRefreshed)
+	switch {
+	case elapsed < time.Minute:
+		return fmt.Sprintf("synced %ds ago", int(elapsed.Seconds()))
+	case elapsed < time.Hour:
+		return fmt.Sprintf("synced %dm ago", int(elapsed.Minutes()))
+	default:
+		return fmt.Sprintf("synced %dh ago", int(elapsed.Hours()))
+	}
+}
+
+// renderStatusBar returns a two-sided status bar with hints on the left and
+// sync status on the right.
+func (m AppModel) renderStatusBar() string {
+	leftContent := "j/k navigate • g/G top/bottom • r refresh • q quit"
+	rightContent := m.statusRight()
+
+	grayStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
+	errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF4444"))
+
+	var rightStyled string
+	if m.lastErr != "" && !m.refreshing {
+		rightStyled = errStyle.Render(rightContent)
+	} else {
+		rightStyled = grayStyle.Render(rightContent)
+	}
+
+	leftStyled := grayStyle.Render(leftContent)
+	padding := m.width - lipgloss.Width(leftContent) - lipgloss.Width(rightContent)
+	if padding < 1 {
+		padding = 1
+	}
+	return leftStyled + strings.Repeat(" ", padding) + rightStyled
 }
 
 // moveCursor moves the cursor by delta and adjusts the viewport.
