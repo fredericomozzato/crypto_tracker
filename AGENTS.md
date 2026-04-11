@@ -3,6 +3,14 @@
 Terminal UI for tracking crypto market data and managing portfolios. Built in Go
 with Bubble Tea, backed by CoinGecko API and a local SQLite database.
 
+## CRITICAL: Do not change Go version
+
+**Never modify the `go` directive in `go.mod` without explicit human approval.**
+
+The Go version is pinned intentionally. Changing it — even via `go mod tidy` — requires a conscious decision: it may affect all contributors, CI environments, and dependency compatibility. If a dependency or tool requires a newer Go version, **stop and ask the human** before proceeding.
+
+---
+
 ## Key documents
 
 Read these before implementing anything:
@@ -24,7 +32,7 @@ Read these before implementing anything:
 | Database    | `modernc.org/sqlite` (pure Go)      |
 | API         | CoinGecko REST (`net/http`)         |
 
-- **Go version:** 1.24
+- **Go version:** 1.25
 - **Module path:** `github.com/fredericomozzato/crypto_tracker`
 - **SQL:** Raw SQL with `go:embed` for schema. No ORM, no sqlc.
 - **Platforms:** macOS and Linux. Windows is not supported.
