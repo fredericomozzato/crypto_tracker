@@ -46,11 +46,11 @@ If no slice is `IN_REVIEW`, stop and tell the user to run `/build` first.
 Note the slice number, name, branch name. Open `docs/issues/NNN-kebab-case-name.md` and
 read the entire file — scope, file plan, implementation order, and verification commands.
 
-### 3. Create the review document
+### 3. Create or update the review document
 
 Path: `docs/reviews/NNN-kebab-case-name.md`
 
-Write the file immediately with this structure:
+**If the file does not exist**, create it with this structure:
 
 ```markdown
 ---
@@ -65,6 +65,20 @@ revision: 1
 
 ## Implementation review
 ```
+
+**If the file already exists**, it is a re-review after fixes. Do not overwrite it:
+1. Increment `revision: N` → `revision: N+1` in the frontmatter
+2. Set `status: in_progress`
+3. Append a new revision section at the end of the file:
+
+```markdown
+---
+
+## Revision N+1
+```
+
+All findings from this run go under that heading, using the same table + detail
+format. Previous revision sections are left untouched — they are the audit trail.
 
 ---
 
@@ -206,9 +220,9 @@ fixes are applied and the review document will be updated.
 ### 8. Report to user
 
 ```
-QA review complete for slice NNN.
+QA review complete for slice NNN (revision N).
 
-Feature review: <PASSED / N findings>
+Smoke test + completeness audit: <PASSED / N findings>
 Implementation review: <PASSED / N findings>
 
 <If findings exist:>
