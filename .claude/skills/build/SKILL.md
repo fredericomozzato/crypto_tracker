@@ -116,6 +116,12 @@ Keep commits atomic — one logical change per commit.
 
 ### 7. Final quality check
 
+> **CRITICAL — this step is mandatory and non-negotiable:**
+>
+> You MUST run all checks and they MUST all be green before this step is complete.
+> Do NOT proceed to step 8 until every check passes. Do NOT report success while
+> any check is failing. There are no exceptions.
+
 Once all steps are implemented:
 
 ```bash
@@ -123,8 +129,19 @@ make check   # fmt + lint + test + vuln — ALL must pass
 make build   # binary must compile cleanly
 ```
 
-If anything fails, fix it before proceeding. Do not declare the build complete with
-failing checks.
+**If anything fails:**
+1. Read the failure output carefully.
+2. Fix the root cause — do not suppress warnings, skip linters, or use `//nolint` to paper over issues.
+3. Re-run `make check` from scratch.
+4. Repeat until every check is green.
+
+**Red flags — if you are thinking any of these, stop:**
+- "The lint warning is minor, I'll proceed anyway"
+- "Tests pass locally, the lint failure is just style"
+- "I'll note the failure and move on"
+- "This check is flaky, I'll skip it"
+
+The only valid exit from step 7 is `make check` and `make build` both exiting with status 0, no failures, no skipped checks.
 
 ### 8. Update roadmap and issue
 
