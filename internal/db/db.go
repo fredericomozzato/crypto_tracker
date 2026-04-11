@@ -16,7 +16,7 @@ var schema string
 
 // Open opens a SQLite database at the given path, applies the schema,
 // and returns the database handle.
-func Open(path string) (*sql.DB, error) {
+func Open(ctx context.Context, path string) (*sql.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, fmt.Errorf("creating database directory: %w", err)
 	}
@@ -25,8 +25,6 @@ func Open(path string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
-
-	ctx := context.Background()
 
 	if _, err := db.ExecContext(ctx, "PRAGMA journal_mode = WAL"); err != nil {
 		return nil, fmt.Errorf("setting WAL mode: %w", err)

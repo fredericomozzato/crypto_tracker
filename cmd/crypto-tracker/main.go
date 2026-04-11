@@ -39,7 +39,7 @@ func realMain() int {
 		return 1
 	}
 
-	database, err := db.Open(dbPath)
+	database, err := db.Open(ctx, dbPath)
 	if err != nil {
 		slog.Error("opening database", "error", err)
 		return 1

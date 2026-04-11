@@ -11,7 +11,7 @@ import (
 func TestUpsertAndReadBack(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.db")
-	database, err := db.Open(dbPath)
+	database, err := db.Open(ctx, dbPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestUpsertAndReadBack(t *testing.T) {
 func TestUpsertUpdatesExisting(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.db")
-	database, err := db.Open(dbPath)
+	database, err := db.Open(ctx, dbPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestUpsertUpdatesExisting(t *testing.T) {
 func TestGetAllCoinsOrdering(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.db")
-	database, err := db.Open(dbPath)
+	database, err := db.Open(ctx, dbPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestGetAllCoinsOrdering(t *testing.T) {
 func TestGetAllCoinsEmpty(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.db")
-	database, err := db.Open(dbPath)
+	database, err := db.Open(ctx, dbPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -208,7 +208,7 @@ func TestGetAllCoinsEmpty(t *testing.T) {
 func TestUpdatePrices(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.db")
-	database, err := db.Open(dbPath)
+	database, err := db.Open(ctx, dbPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestUpdatePrices(t *testing.T) {
 func TestUpdatePricesUnknownCoin(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.db")
-	database, err := db.Open(dbPath)
+	database, err := db.Open(ctx, dbPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -296,7 +296,7 @@ func TestUpdatePricesUnknownCoin(t *testing.T) {
 func TestUpdatePricesEmpty(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.db")
-	database, err := db.Open(dbPath)
+	database, err := db.Open(ctx, dbPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
