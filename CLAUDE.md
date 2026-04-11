@@ -348,3 +348,13 @@ issues:
 | `--debug` | Enable file logging to `$XDG_STATE_HOME/.../app.log` |
 
 CLI flags are parsed with the stdlib `flag` package. Do not add `cobra` or `pflag` — the app has a single command and does not need a multi-command framework.
+
+# CoinGecko API
+Whenever you have to develop any feature that touches the CoinGecko API consult the appropriate documentation endpoint:
+
+https://docs.coingecko.com/llms-full.txt
+
+This endpoint will provide LLM optimized documentation. ALWAYS research the endpoints to understand how to build things.
+
+## IMPORTANT
+We are running the free/demo version of the API. So we need to look at the reference for this type of application and be VERY mindful about the rate limiting that comes with it. Always develop the features trying to minimize requests and staying under the limits defined by the API wich is of ~30 calls per minute.

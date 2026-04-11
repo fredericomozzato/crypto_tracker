@@ -6,6 +6,7 @@ Build incrementally with red-green TDD — no horizontal layers.
 ---
 
 ## Slice 1 — Skeleton app
+STATUS: DONE
 
 - Project structure: `cmd/crypto-tracker/main.go`, `internal/ui/app.go`
 - Bubble Tea program with alt screen, renders a placeholder message
@@ -13,6 +14,7 @@ Build incrementally with red-green TDD — no horizontal layers.
 - **TDD:** model handles `tea.KeyMsg("q")` → returns `tea.Quit`
 
 ## Slice 2 — One real coin, full pipeline
+STATUS: DONE
 
 - `internal/store/store.go` (Store interface), `internal/store/sqlite.go` (SQLiteStore)
 - `internal/db/db.go` + `schema.sql` (embedded, WAL + FK pragmas)
@@ -21,13 +23,20 @@ Build incrementally with red-green TDD — no horizontal layers.
 - **TDD:** store tests with real SQLite via `t.TempDir()`, API tests with `httptest.NewServer`
 
 ## Slice 3 — Markets table: 100 coins, scrolling, formatting
+STATUS: IN_PROGRESS
 
 - Fetch top 100 coins on first launch; load from DB on subsequent launches
 - Scrollable table: `j`/`k`/`g`/`G`, cursor highlighting
 - `internal/format/format.go` — `FmtPrice`, `FmtChange` with proper thresholds
 - **TDD:** format functions, cursor wrapping/clamping logic
 
+### IMPORTANT
+We have to respect the CoinGecko API's rate limiting. So we CAN'T run a request for individual coins. We MUST always update them in batches. Query the simple coin price passing all the IDs for the supported coins in a single request. Then we parse the data and update them in the database.
+
+If you find a more efficient solution you're allowed to implement it, but ensure we never hit rate limitings when updating the coins or using the app.
+
 ## Slice 4 — Auto-refresh + status bar
+STATUS: PENDING
 
 - 5s ticker → checks if 60s elapsed → fires `cmdRefresh` via `/simple/price`
 - Manual refresh with `r` (no-op if already refreshing)
@@ -36,6 +45,7 @@ Build incrementally with red-green TDD — no horizontal layers.
 - **TDD:** tick/refresh state transitions, error display logic
 
 ## Slice 5 — Tab bar + empty Portfolio tab
+STATUS: PENDING
 
 - Two tabs rendered at top, `Tab`/`Shift+Tab`/`1`/`2` to switch
 - Portfolio tab shows empty state: "no portfolios — press n to create one"
@@ -43,6 +53,7 @@ Build incrementally with red-green TDD — no horizontal layers.
 - **TDD:** tab switching logic, input suppression
 
 ## Slice 6 — Create portfolio + left panel
+STATUS: PENDING
 
 - Left panel lists portfolios with `▶` cursor, `j`/`k` to navigate
 - `n` opens create dialog, text input (max 50 chars), `Enter` saves, `Esc` cancels
@@ -50,6 +61,7 @@ Build incrementally with red-green TDD — no horizontal layers.
 - **TDD:** portfolio CRUD in store, dialog state transitions
 
 ## Slice 7 — Add holding: coin picker + amount input
+STATUS: PENDING
 
 - `a` opens coin picker dialog (searchable, filterable list of all coins)
 - Select coin → amount input → upsert holding
@@ -58,6 +70,7 @@ Build incrementally with red-green TDD — no horizontal layers.
 - **TDD:** holding upsert (including update-on-conflict), filter logic, computed values
 
 ## Slice 8 — List mode + edit + delete holding
+STATUS: PENDING
 
 - `Enter` from menu mode enters list mode (right panel focus)
 - `j`/`k`/`g`/`G` in holdings list, `Esc` returns to menu
@@ -67,6 +80,7 @@ Build incrementally with red-green TDD — no horizontal layers.
 - **TDD:** edit/delete state machine, cursor clamping after deletion
 
 ## Slice 9 — Terminal size guard + `--debug` logging
+STATUS: PENDING
 
 - Minimum 100×30 enforced — centered message if too small, re-renders on resize
 - `--debug` flag enables `slog` logging to `$XDG_STATE_HOME/crypto_tracker/app.log`
