@@ -18,7 +18,7 @@ type AppModel struct {
 	store      store.Store
 	client     api.CoinGeckoClient
 	coins      []store.Coin
-	errMsg     string
+	lastErr    string
 	refreshing bool
 }
 
@@ -95,13 +95,13 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 	case coinsLoadedMsg:
 		m.coins = msg.coins
-		m.errMsg = ""
+		m.lastErr = ""
 	case pricesUpdatedMsg:
 		m.coins = msg.coins
 		m.refreshing = false
-		m.errMsg = ""
+		m.lastErr = ""
 	case errMsg:
-		m.errMsg = msg.err.Error()
+		m.lastErr = msg.err.Error()
 		m.refreshing = false
 	}
 
@@ -148,10 +148,10 @@ func (m AppModel) View() string {
 	var content string
 
 	switch {
-	case m.errMsg != "":
+	case m.lastErr != "":
 		content = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF0000")).
-			Render("Error: " + m.errMsg)
+			Render("Error: " + m.lastErr)
 	case len(m.coins) > 0:
 		// Display the first coin
 		c := m.coins[0]
