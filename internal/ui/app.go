@@ -141,8 +141,8 @@ func (m AppModel) cmdRefresh() tea.Cmd {
 // View renders the current state of the app.
 func (m AppModel) View() string {
 	// Check minimum terminal size
-	if m.width < 80 || m.height < 24 {
-		return "Terminal too small — resize to at least 80×24"
+	if m.width < 100 || m.height < 30 {
+		return "Terminal too small — resize to at least 100×30"
 	}
 
 	var content string
