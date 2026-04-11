@@ -95,9 +95,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 	case coinsLoadedMsg:
 		m.coins = msg.coins
+		m.errMsg = ""
 	case pricesUpdatedMsg:
 		m.coins = msg.coins
 		m.refreshing = false
+		m.errMsg = ""
 	case errMsg:
 		m.errMsg = msg.err.Error()
 		m.refreshing = false
