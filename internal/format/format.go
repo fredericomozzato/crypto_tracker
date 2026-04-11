@@ -10,11 +10,10 @@ import (
 //   - v < 1:  "$0.XXXXXX" (6 dp)
 func FmtPrice(v float64) string {
 	if v >= 1 {
-		intPart := int64(v)
-		fracPart := v - float64(intPart)
-		return "$" + addCommas(fmt.Sprintf("%d", intPart)) + fmt.Sprintf(".%02d", int64(fracPart*100+0.5))
+		parts := strings.SplitN(fmt.Sprintf("%.2f", v), ".", 2)
+		return "$" + addCommas(parts[0]) + "." + parts[1]
 	}
-	return fmt.Sprintf("$0.%06d", int64(v*1e6+0.5))
+	return fmt.Sprintf("$%.6f", v)
 }
 
 // FmtChange formats a 24 h percentage change as "+X.XX%" or "-X.XX%".

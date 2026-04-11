@@ -42,6 +42,14 @@ func TestFmtPriceSmallAboveOne(t *testing.T) {
 	}
 }
 
+func TestFmtPriceDecimalOverflow(t *testing.T) {
+	got := FmtPrice(99.995)
+	want := "$100.00"
+	if got != want {
+		t.Errorf("FmtPrice(99.995) = %q, want %q", got, want)
+	}
+}
+
 func TestFmtChangePositive(t *testing.T) {
 	got := FmtChange(2.34)
 	want := "+2.34%"
