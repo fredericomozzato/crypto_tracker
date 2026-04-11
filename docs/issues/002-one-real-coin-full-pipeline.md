@@ -1,5 +1,5 @@
 ---
-status: pending
+status: done
 branch: feat/002-one-real-coin-full-pipeline
 ---
 

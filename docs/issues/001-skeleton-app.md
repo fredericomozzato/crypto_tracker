@@ -1,5 +1,5 @@
 ---
-status: doing
+status: done
 ---
 
 # Slice 1 — Skeleton App

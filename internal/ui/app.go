@@ -3,10 +3,13 @@ package ui
 import (
 	"context"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/fredericomozzato/crypto_tracker/internal/api"
+	"github.com/fredericomozzato/crypto_tracker/internal/format"
 	"github.com/fredericomozzato/crypto_tracker/internal/store"
 )
 
@@ -20,6 +23,8 @@ type AppModel struct {
 	coins      []store.Coin
 	lastErr    string
 	refreshing bool
+	cursor     int // index of selected row in m.coins
+	offset     int // index of first visible row (viewport scroll)
 }
 
 // coinsLoadedMsg is sent when coins are successfully loaded from the API.
@@ -49,26 +54,28 @@ func NewAppModel(ctx context.Context, s store.Store, c api.CoinGeckoClient) AppM
 // Init is the Bubble Tea init command. Fetches initial coin data.
 func (m AppModel) Init() tea.Cmd {
 	return func() tea.Msg {
-		// Fetch one coin from the API
-		coins, err := m.client.FetchMarkets(m.ctx, 1)
+		existing, err := m.store.GetAllCoins(m.ctx)
+		if err != nil {
+			return errMsg{err: fmt.Errorf("loading coins: %w", err)}
+		}
+		if len(existing) >= 100 {
+			return coinsLoadedMsg{coins: existing}
+		}
+
+		fetched, err := m.client.FetchMarkets(m.ctx, 100)
 		if err != nil {
 			return errMsg{err: err}
 		}
-
-		// Upsert the fetched coin(s) into the store
-		for _, coin := range coins {
-			if err := m.store.UpsertCoin(m.ctx, coin); err != nil {
-				return errMsg{err: err}
+		for _, c := range fetched {
+			if err := m.store.UpsertCoin(m.ctx, c); err != nil {
+				return errMsg{err: fmt.Errorf("upserting coin %s: %w", c.ApiID, err)}
 			}
 		}
-
-		// Read back all coins from the store
-		storedCoins, err := m.store.GetAllCoins(m.ctx)
+		stored, err := m.store.GetAllCoins(m.ctx)
 		if err != nil {
-			return errMsg{err: err}
+			return errMsg{err: fmt.Errorf("loading coins after seed: %w", err)}
 		}
-
-		return coinsLoadedMsg{coins: storedCoins}
+		return coinsLoadedMsg{coins: stored}
 	}
 }
 
@@ -81,14 +88,32 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case tea.KeyRunes:
 			for _, r := range msg.Runes {
-				if r == 'q' {
+				switch r {
+				case 'q':
 					return m, tea.Quit
-				}
-				if r == 'r' && !m.refreshing && len(m.coins) > 0 {
-					m.refreshing = true
-					return m, m.cmdRefresh()
+				case 'r':
+					if !m.refreshing && len(m.coins) > 0 {
+						m.refreshing = true
+						return m, m.cmdRefresh()
+					}
+				case 'j':
+					m.moveCursor(+1)
+				case 'k':
+					m.moveCursor(-1)
+				case 'g':
+					m.cursor = 0
+					m.adjustViewport()
+				case 'G':
+					if len(m.coins) > 0 {
+						m.cursor = len(m.coins) - 1
+						m.adjustViewport()
+					}
 				}
 			}
+		case tea.KeyDown:
+			m.moveCursor(+1)
+		case tea.KeyUp:
+			m.moveCursor(-1)
 		}
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -96,6 +121,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case coinsLoadedMsg:
 		m.coins = msg.coins
 		m.lastErr = ""
+		if m.cursor >= len(m.coins) && len(m.coins) > 0 {
+			m.cursor = len(m.coins) - 1
+		}
+		if m.cursor < 0 {
+			m.cursor = 0
+		}
 	case pricesUpdatedMsg:
 		m.coins = msg.coins
 		m.refreshing = false
@@ -145,40 +176,139 @@ func (m AppModel) View() string {
 		return "Terminal too small — resize to at least 100×30"
 	}
 
-	var content string
-
 	switch {
 	case m.lastErr != "":
-		content = lipgloss.NewStyle().
+		return lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF0000")).
 			Render("Error: " + m.lastErr)
-	case len(m.coins) > 0:
-		// Display the first coin
-		c := m.coins[0]
-		content = fmt.Sprintf(
-			"%s (%s)\nPrice: $%.2f\n24h Change: %.2f%%\n\n%s",
-			c.Name,
-			c.Ticker,
-			c.Rate,
-			c.PriceChange,
-			m.refreshHint(),
-		)
-	default:
-		content = "loading..."
+	case len(m.coins) == 0:
+		return "loading..."
 	}
 
-	style := lipgloss.NewStyle().
-		Width(m.width).
-		Height(m.height).
-		Align(lipgloss.Center, lipgloss.Center)
+	h := m.tableHeight()
+	end := m.offset + h
+	if end > len(m.coins) {
+		end = len(m.coins)
+	}
 
-	return style.Render(content)
+	// Column widths
+	wRank := 4
+	wName := 22
+	wTicker := 8
+	wPrice := 14
+	wChange := 9
+
+	highlight := lipgloss.NewStyle().Reverse(true)
+	green := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
+	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
+
+	// Header
+	header := fmt.Sprintf(
+		"%*s  %-*s  %-*s  %*s  %*s",
+		wRank, "#",
+		wName, "Name",
+		wTicker, "Ticker",
+		wPrice, "Price (USD)",
+		wChange, "24h",
+	)
+
+	var lines []string
+	lines = append(lines, header)
+
+	for i := m.offset; i < end; i++ {
+		c := m.coins[i]
+		price := format.FmtPrice(c.Rate)
+		change := format.FmtChange(c.PriceChange)
+
+		if c.PriceChange >= 0 {
+			change = green.Render(change)
+		} else {
+			change = red.Render(change)
+		}
+
+		line := fmt.Sprintf(
+			"%*d  %-*s  %-*s  %*s  %*s",
+			wRank, c.MarketRank,
+			wName, truncate(c.Name, wName-2),
+			wTicker, c.Ticker,
+			wPrice, price,
+			wChange, change,
+		)
+
+		if i == m.cursor {
+			line = highlight.Render(line)
+		}
+
+		lines = append(lines, line)
+	}
+
+	// Pad remaining rows
+	for len(lines)-1 < h {
+		lines = append(lines, "")
+	}
+
+	// Hint line
+	hint := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#888888")).
+		Render("j/k navigate • g/G top/bottom • r refresh • q quit")
+
+	return strings.Join(lines, "\n") + "\n" + hint
 }
 
-// refreshHint returns the hint text for refreshing prices.
-func (m AppModel) refreshHint() string {
-	if m.refreshing {
-		return "refreshing..."
+// moveCursor moves the cursor by delta and adjusts the viewport.
+func (m *AppModel) moveCursor(delta int) {
+	if len(m.coins) == 0 {
+		return
 	}
-	return "r to refresh"
+	m.cursor += delta
+	if m.cursor < 0 {
+		m.cursor = 0
+	}
+	if m.cursor >= len(m.coins) {
+		m.cursor = len(m.coins) - 1
+	}
+	m.adjustViewport()
+}
+
+// adjustViewport updates m.offset so the cursor row stays visible.
+func (m *AppModel) adjustViewport() {
+	h := m.tableHeight()
+	if m.cursor < m.offset {
+		m.offset = m.cursor
+	}
+	if m.cursor >= m.offset+h {
+		m.offset = m.cursor - h + 1
+	}
+	maxOff := len(m.coins) - h
+	if maxOff < 0 {
+		maxOff = 0
+	}
+	if m.offset > maxOff {
+		m.offset = maxOff
+	}
+	if m.offset < 0 {
+		m.offset = 0
+	}
+}
+
+// tableHeight returns the number of rows available for coin data.
+// Reserves 1 row for column headers and 1 row for the hint line.
+func (m AppModel) tableHeight() int {
+	h := m.height - 2
+	if h < 1 {
+		return 1
+	}
+	return h
+}
+
+// truncate returns s truncated to maxLen characters with an ellipsis.
+func truncate(s string, maxLen int) string {
+	if utf8.RuneCountInString(s) <= maxLen {
+		return s
+	}
+	if maxLen <= 1 {
+		return "…"
+	}
+	runes := []rune(s)
+	return string(runes[:maxLen-1]) + "…"
 }

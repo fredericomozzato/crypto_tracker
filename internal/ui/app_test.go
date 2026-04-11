@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -17,7 +18,17 @@ type StubStore struct {
 }
 
 func (s *StubStore) UpsertCoin(ctx context.Context, c store.Coin) error {
-	return s.err
+	if s.err != nil {
+		return s.err
+	}
+	for i, existing := range s.coins {
+		if existing.ApiID == c.ApiID {
+			s.coins[i] = c
+			return nil
+		}
+	}
+	s.coins = append(s.coins, c)
+	return nil
 }
 
 func (s *StubStore) GetAllCoins(ctx context.Context) ([]store.Coin, error) {
@@ -37,12 +48,14 @@ func (s *StubStore) UpdatePrices(ctx context.Context, prices map[string]float64)
 
 // StubAPI implements api.CoinGeckoClient for testing
 type StubAPI struct {
-	coins  []store.Coin
-	prices map[string]float64
-	err    error
+	coins             []store.Coin
+	prices            map[string]float64
+	err               error
+	fetchMarketsCalls []int // records the limit arg each time FetchMarkets is called
 }
 
 func (a *StubAPI) FetchMarkets(ctx context.Context, limit int) ([]store.Coin, error) {
+	a.fetchMarketsCalls = append(a.fetchMarketsCalls, limit)
 	if a.err != nil {
 		return nil, a.err
 	}
@@ -186,8 +199,21 @@ func TestCoinsLoadedMsg(t *testing.T) {
 		t.Errorf("expected view to contain 'BTC', got %q", view)
 	}
 
-	if !strings.Contains(view, "67000") {
-		t.Errorf("expected view to contain price, got %q", view)
+	if !strings.Contains(view, "$67,000.00") {
+		t.Errorf("expected view to contain '$67,000.00', got %q", view)
+	}
+
+	if !strings.Contains(view, "Name") {
+		t.Errorf("expected view to contain column header 'Name', got %q", view)
+	}
+	if !strings.Contains(view, "Ticker") {
+		t.Errorf("expected view to contain column header 'Ticker', got %q", view)
+	}
+	if !strings.Contains(view, "Price (USD)") {
+		t.Errorf("expected view to contain column header 'Price (USD)', got %q", view)
+	}
+	if !strings.Contains(view, "24h") {
+		t.Errorf("expected view to contain column header '24h', got %q", view)
 	}
 }
 
@@ -322,7 +348,7 @@ func TestPricesUpdatedMsg(t *testing.T) {
 }
 
 func TestViewShowsRefreshHint(t *testing.T) {
-	stub := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
+	stub := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00, MarketRank: 1}}}
 	api := &StubAPI{}
 	m := NewAppModel(context.Background(), stub, api)
 	m.width = 100
@@ -330,22 +356,239 @@ func TestViewShowsRefreshHint(t *testing.T) {
 	m.coins = stub.coins
 
 	view := m.View()
-	if !strings.Contains(view, "r to refresh") {
-		t.Errorf("expected view to contain 'r to refresh', got %q", view)
+	if !strings.Contains(view, "r refresh") {
+		t.Errorf("expected view to contain 'r refresh', got %q", view)
 	}
 }
 
-func TestViewShowsRefreshingIndicator(t *testing.T) {
-	stub := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
+func TestViewRendersColumnHeaders(t *testing.T) {
+	coins := threeCoins()
+	m := NewAppModel(context.Background(), &StubStore{coins: coins}, &StubAPI{})
+	m.width = 120
+	m.height = 40
+	updated, _ := m.Update(coinsLoadedMsg{coins: coins})
+	model := updated.(AppModel)
+
+	view := model.View()
+	for _, col := range []string{"#", "Name", "Ticker", "Price (USD)", "24h"} {
+		if !strings.Contains(view, col) {
+			t.Errorf("expected view to contain header %q, got %q", col, view)
+		}
+	}
+}
+
+func TestViewRendersHintLine(t *testing.T) {
+	coins := threeCoins()
+	m := NewAppModel(context.Background(), &StubStore{coins: coins}, &StubAPI{})
+	m.width = 120
+	m.height = 40
+	updated, _ := m.Update(coinsLoadedMsg{coins: coins})
+	model := updated.(AppModel)
+
+	view := model.View()
+	if !strings.Contains(view, "j/k") {
+		t.Errorf("expected view to contain 'j/k', got %q", view)
+	}
+}
+
+func TestInitFetchesHundredCoinsOnFirstLaunch(t *testing.T) {
+	coins := threeCoins()
+	api := &StubAPI{coins: coins}
+	s := &StubStore{}
+	m := NewAppModel(context.Background(), s, api)
+
+	cmd := m.Init()
+	msg := cmd()
+
+	loaded, ok := msg.(coinsLoadedMsg)
+	if !ok {
+		t.Fatalf("expected coinsLoadedMsg, got %T: %v", msg, msg)
+	}
+	if len(loaded.coins) != 3 {
+		t.Errorf("expected 3 coins, got %d", len(loaded.coins))
+	}
+	if len(api.fetchMarketsCalls) != 1 || api.fetchMarketsCalls[0] != 100 {
+		t.Errorf("expected FetchMarkets called with 100, got %v", api.fetchMarketsCalls)
+	}
+}
+
+func TestInitLoadsFromDBOnSubsequentLaunch(t *testing.T) {
+	coins := makeCoins(100)
+	api := &StubAPI{coins: coins}
+	s := &StubStore{coins: coins}
+	m := NewAppModel(context.Background(), s, api)
+
+	cmd := m.Init()
+	msg := cmd()
+
+	loaded, ok := msg.(coinsLoadedMsg)
+	if !ok {
+		t.Fatalf("expected coinsLoadedMsg, got %T: %v", msg, msg)
+	}
+	if len(loaded.coins) != 100 {
+		t.Errorf("expected 100 coins from DB, got %d", len(loaded.coins))
+	}
+	if len(api.fetchMarketsCalls) != 0 {
+		t.Errorf("expected no API calls, got %v", api.fetchMarketsCalls)
+	}
+}
+
+func TestInitRefetchesWhenDBPartiallySeeded(t *testing.T) {
+	partial := makeCoins(10)
+	full := makeCoins(100)
+	api := &StubAPI{coins: full}
+	s := &StubStore{coins: partial}
+	m := NewAppModel(context.Background(), s, api)
+
+	cmd := m.Init()
+	msg := cmd()
+
+	loaded, ok := msg.(coinsLoadedMsg)
+	if !ok {
+		t.Fatalf("expected coinsLoadedMsg, got %T: %v", msg, msg)
+	}
+	if len(loaded.coins) != 100 {
+		t.Errorf("expected 100 coins after refetch, got %d", len(loaded.coins))
+	}
+	if len(api.fetchMarketsCalls) != 1 || api.fetchMarketsCalls[0] != 100 {
+		t.Errorf("expected FetchMarkets called with 100, got %v", api.fetchMarketsCalls)
+	}
+}
+
+func threeCoins() []store.Coin {
+	return makeCoins(3)
+}
+
+func makeCoins(n int) []store.Coin {
+	coins := make([]store.Coin, n)
+	for i := range coins {
+		coins[i] = store.Coin{
+			ApiID:      fmt.Sprintf("coin-%d", i+1),
+			Name:       fmt.Sprintf("Coin %d", i+1),
+			Ticker:     fmt.Sprintf("C%d", i+1),
+			Rate:       float64((i + 1) * 100),
+			MarketRank: i + 1,
+		}
+	}
+	return coins
+}
+
+func setupCursorModel(t *testing.T, coins []store.Coin) AppModel {
+	t.Helper()
+	m := NewAppModel(context.Background(), &StubStore{coins: coins}, &StubAPI{})
+	m.width = 120
+	m.height = 40
+	updated, _ := m.Update(coinsLoadedMsg{coins: coins})
+	return updated.(AppModel)
+}
+
+func TestCursorMovesDownOnJ(t *testing.T) {
+	m := setupCursorModel(t, threeCoins())
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = updated.(AppModel)
+	if m.cursor != 1 {
+		t.Errorf("expected cursor 1 after 'j', got %d", m.cursor)
+	}
+}
+
+func TestCursorMovesUpOnK(t *testing.T) {
+	m := setupCursorModel(t, threeCoins())
+	m.cursor = 1
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	m = updated.(AppModel)
+	if m.cursor != 0 {
+		t.Errorf("expected cursor 0 after 'k', got %d", m.cursor)
+	}
+}
+
+func TestCursorClampsAtBottom(t *testing.T) {
+	m := setupCursorModel(t, threeCoins())
+	m.cursor = 2
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = updated.(AppModel)
+	if m.cursor != 2 {
+		t.Errorf("expected cursor 2 (clamped), got %d", m.cursor)
+	}
+}
+
+func TestCursorClampsAtTop(t *testing.T) {
+	m := setupCursorModel(t, threeCoins())
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	m = updated.(AppModel)
+	if m.cursor != 0 {
+		t.Errorf("expected cursor 0 (clamped), got %d", m.cursor)
+	}
+}
+
+func TestCursorJumpsToTopOnG(t *testing.T) {
+	m := setupCursorModel(t, threeCoins())
+	m.cursor = 2
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	m = updated.(AppModel)
+	if m.cursor != 0 {
+		t.Errorf("expected cursor 0 after 'g', got %d", m.cursor)
+	}
+}
+
+func TestCursorJumpsToBottomOnCapG(t *testing.T) {
+	m := setupCursorModel(t, threeCoins())
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'G'}})
+	m = updated.(AppModel)
+	if m.cursor != 2 {
+		t.Errorf("expected cursor 2 after 'G', got %d", m.cursor)
+	}
+}
+
+func TestCursorMovesDownOnDownArrow(t *testing.T) {
+	m := setupCursorModel(t, threeCoins())
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(AppModel)
+	if m.cursor != 1 {
+		t.Errorf("expected cursor 1 after KeyDown, got %d", m.cursor)
+	}
+}
+
+func TestCursorMovesUpOnUpArrow(t *testing.T) {
+	m := setupCursorModel(t, threeCoins())
+	m.cursor = 1
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	m = updated.(AppModel)
+	if m.cursor != 0 {
+		t.Errorf("expected cursor 0 after KeyUp, got %d", m.cursor)
+	}
+}
+
+func TestMoveCursorNoPanicOnEmptyCoins(t *testing.T) {
+	stub := &StubStore{}
 	api := &StubAPI{}
 	m := NewAppModel(context.Background(), stub, api)
 	m.width = 100
 	m.height = 30
-	m.coins = stub.coins
-	m.refreshing = true
 
-	view := m.View()
-	if !strings.Contains(view, "refreshing...") {
-		t.Errorf("expected view to contain 'refreshing...', got %q", view)
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	model := updated.(AppModel)
+	if model.cursor != 0 {
+		t.Errorf("expected cursor 0 on empty coins, got %d", model.cursor)
+	}
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	model = updated.(AppModel)
+	if model.cursor != 0 {
+		t.Errorf("expected cursor 0 on empty coins after 'k', got %d", model.cursor)
+	}
+}
+
+func TestCursorClampedAfterCoinsLoaded(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	m.cursor = 5
+	updated, _ := m.Update(coinsLoadedMsg{coins: threeCoins()})
+	model := updated.(AppModel)
+	if model.cursor != 2 {
+		t.Errorf("expected cursor clamped to 2 (last index), got %d", model.cursor)
 	}
 }
