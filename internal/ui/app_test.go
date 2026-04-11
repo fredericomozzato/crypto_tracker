@@ -524,3 +524,38 @@ func TestCursorMovesUpOnUpArrow(t *testing.T) {
 		t.Errorf("expected cursor 0 after KeyUp, got %d", m.cursor)
 	}
 }
+
+func TestMoveCursorNoPanicOnEmptyCoins(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	model := updated.(AppModel)
+	if model.cursor != 0 {
+		t.Errorf("expected cursor 0 on empty coins, got %d", model.cursor)
+	}
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	model = updated.(AppModel)
+	if model.cursor != 0 {
+		t.Errorf("expected cursor 0 on empty coins after 'k', got %d", model.cursor)
+	}
+}
+
+func TestCursorClampedAfterCoinsLoaded(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	m.cursor = 5
+	updated, _ := m.Update(coinsLoadedMsg{coins: threeCoins()})
+	model := updated.(AppModel)
+	if model.cursor != 2 {
+		t.Errorf("expected cursor clamped to 2 (last index), got %d", model.cursor)
+	}
+}

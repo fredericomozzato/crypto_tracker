@@ -120,6 +120,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case coinsLoadedMsg:
 		m.coins = msg.coins
 		m.lastErr = ""
+		if m.cursor >= len(m.coins) && len(m.coins) > 0 {
+			m.cursor = len(m.coins) - 1
+		}
+		if m.cursor < 0 {
+			m.cursor = 0
+		}
 	case pricesUpdatedMsg:
 		m.coins = msg.coins
 		m.refreshing = false
@@ -250,6 +256,9 @@ func (m AppModel) View() string {
 
 // moveCursor moves the cursor by delta and adjusts the viewport.
 func (m *AppModel) moveCursor(delta int) {
+	if len(m.coins) == 0 {
+		return
+	}
 	m.cursor += delta
 	if m.cursor < 0 {
 		m.cursor = 0
