@@ -150,7 +150,7 @@ func TestIgnoresOtherKeys(t *testing.T) {
 	}
 }
 
-func TestInitReturnsCmd(t *testing.T) {
+func TestInitReturnsBatchedCmd(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
 	m := NewAppModel(context.Background(), stub, api)
@@ -398,8 +398,7 @@ func TestInitFetchesHundredCoinsOnFirstLaunch(t *testing.T) {
 	s := &StubStore{}
 	m := NewAppModel(context.Background(), s, api)
 
-	cmd := m.Init()
-	msg := cmd()
+	msg := executeInitBatch(t, m)
 
 	loaded, ok := msg.(coinsLoadedMsg)
 	if !ok {
@@ -419,8 +418,7 @@ func TestInitLoadsFromDBOnSubsequentLaunch(t *testing.T) {
 	s := &StubStore{coins: coins}
 	m := NewAppModel(context.Background(), s, api)
 
-	cmd := m.Init()
-	msg := cmd()
+	msg := executeInitBatch(t, m)
 
 	loaded, ok := msg.(coinsLoadedMsg)
 	if !ok {
@@ -441,8 +439,7 @@ func TestInitRefetchesWhenDBPartiallySeeded(t *testing.T) {
 	s := &StubStore{coins: partial}
 	m := NewAppModel(context.Background(), s, api)
 
-	cmd := m.Init()
-	msg := cmd()
+	msg := executeInitBatch(t, m)
 
 	loaded, ok := msg.(coinsLoadedMsg)
 	if !ok {
@@ -454,6 +451,27 @@ func TestInitRefetchesWhenDBPartiallySeeded(t *testing.T) {
 	if len(api.fetchMarketsCalls) != 1 || api.fetchMarketsCalls[0] != 100 {
 		t.Errorf("expected FetchMarkets called with 100, got %v", api.fetchMarketsCalls)
 	}
+}
+
+// executeInitBatch runs the batched command from Init() and returns the first
+// coinsLoadedMsg or errMsg found.
+func executeInitBatch(t *testing.T, m AppModel) tea.Msg {
+	t.Helper()
+	cmd := m.Init()
+	result := cmd()
+	batch, ok := result.(tea.BatchMsg)
+	if !ok {
+		return result
+	}
+	for _, c := range batch {
+		msg := c()
+		switch msg.(type) {
+		case coinsLoadedMsg, errMsg:
+			return msg
+		}
+	}
+	t.Fatal("no coinsLoadedMsg or errMsg in batch")
+	return nil
 }
 
 func threeCoins() []store.Coin {

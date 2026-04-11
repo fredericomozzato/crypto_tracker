@@ -65,6 +65,11 @@ func cmdTick() tea.Cmd {
 
 // Init is the Bubble Tea init command. Fetches initial coin data.
 func (m AppModel) Init() tea.Cmd {
+	return tea.Batch(m.cmdLoad(), cmdTick())
+}
+
+// cmdLoad returns a command that loads coins from the database or fetches from API.
+func (m AppModel) cmdLoad() tea.Cmd {
 	return func() tea.Msg {
 		existing, err := m.store.GetAllCoins(m.ctx)
 		if err != nil {
