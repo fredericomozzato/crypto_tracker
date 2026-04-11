@@ -121,7 +121,7 @@ func (c *HTTPClient) FetchPrices(ctx context.Context, apiIDs []string) (map[stri
 	params.Set("ids", strings.Join(apiIDs, ","))
 	params.Set("vs_currencies", "usd")
 
-	u := c.baseURL + "/simple/prices?" + params.Encode()
+	u := c.baseURL + "/simple/price?" + params.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
