@@ -145,6 +145,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case coinsLoadedMsg:
 		m.coins = msg.coins
 		m.lastErr = ""
+		m.lastRefreshed = time.Now()
 		if m.cursor >= len(m.coins) && len(m.coins) > 0 {
 			m.cursor = len(m.coins) - 1
 		}
@@ -155,6 +156,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.coins = msg.coins
 		m.refreshing = false
 		m.lastErr = ""
+		m.lastRefreshed = time.Now()
 	case errMsg:
 		m.lastErr = msg.err.Error()
 		m.refreshing = false

@@ -692,3 +692,42 @@ func TestTickMsgWhenNoCoins(t *testing.T) {
 		t.Error("expected no refresh when no coins loaded")
 	}
 }
+
+func TestCoinsLoadedSetsLastRefreshed(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	if !m.lastRefreshed.IsZero() {
+		t.Error("expected lastRefreshed to be zero initially")
+	}
+
+	updated, _ := m.Update(coinsLoadedMsg{coins: threeCoins()})
+	model := updated.(AppModel)
+
+	if model.lastRefreshed.IsZero() {
+		t.Error("expected lastRefreshed to be set after coinsLoadedMsg")
+	}
+}
+
+func TestPricesUpdatedSetsLastRefreshed(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.refreshing = true
+
+	updated, _ := m.Update(pricesUpdatedMsg{coins: threeCoins()})
+	model := updated.(AppModel)
+
+	if model.lastRefreshed.IsZero() {
+		t.Error("expected lastRefreshed to be set after pricesUpdatedMsg")
+	}
+	if model.refreshing {
+		t.Error("expected refreshing to be false after pricesUpdatedMsg")
+	}
+}
