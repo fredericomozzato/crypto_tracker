@@ -23,7 +23,7 @@ STATUS: DONE
 - **TDD:** store tests with real SQLite via `t.TempDir()`, API tests with `httptest.NewServer`
 
 ## Slice 3 — Markets table: 100 coins, scrolling, formatting
-STATUS: IN_PROGRESS
+STATUS: DONE
 
 - Fetch top 100 coins on first launch; load from DB on subsequent launches
 - Scrollable table: `j`/`k`/`g`/`G`, cursor highlighting

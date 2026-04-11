@@ -1,5 +1,5 @@
 ---
-status: in_progress
+status: done
 branch: feat/003-markets-table-scrolling-formatting
 ---
 
