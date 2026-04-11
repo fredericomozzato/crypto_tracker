@@ -58,7 +58,7 @@ func realMain() int {
 	client := api.NewHTTPClient(apiKey)
 
 	// Create model with dependencies
-	model := ui.NewAppModel(s, client)
+	model := ui.NewAppModel(ctx, s, client)
 
 	p := tea.NewProgram(
 		model,

@@ -14,6 +14,7 @@ import (
 type AppModel struct {
 	width      int
 	height     int
+	ctx        context.Context
 	store      store.Store
 	client     api.CoinGeckoClient
 	coins      []store.Coin
@@ -37,8 +38,9 @@ type pricesUpdatedMsg struct {
 }
 
 // NewAppModel creates a new AppModel with the given dependencies.
-func NewAppModel(s store.Store, c api.CoinGeckoClient) AppModel {
+func NewAppModel(ctx context.Context, s store.Store, c api.CoinGeckoClient) AppModel {
 	return AppModel{
+		ctx:    ctx,
 		store:  s,
 		client: c,
 	}
@@ -47,23 +49,21 @@ func NewAppModel(s store.Store, c api.CoinGeckoClient) AppModel {
 // Init is the Bubble Tea init command. Fetches initial coin data.
 func (m AppModel) Init() tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
-
 		// Fetch one coin from the API
-		coins, err := m.client.FetchMarkets(ctx, 1)
+		coins, err := m.client.FetchMarkets(m.ctx, 1)
 		if err != nil {
 			return errMsg{err: err}
 		}
 
 		// Upsert the fetched coin(s) into the store
 		for _, coin := range coins {
-			if err := m.store.UpsertCoin(ctx, coin); err != nil {
+			if err := m.store.UpsertCoin(m.ctx, coin); err != nil {
 				return errMsg{err: err}
 			}
 		}
 
 		// Read back all coins from the store
-		storedCoins, err := m.store.GetAllCoins(ctx)
+		storedCoins, err := m.store.GetAllCoins(m.ctx)
 		if err != nil {
 			return errMsg{err: err}
 		}
@@ -109,8 +109,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // cmdRefresh returns a command that refreshes prices for all loaded coins.
 func (m AppModel) cmdRefresh() tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
-
 		// Build list of API IDs from loaded coins
 		apiIDs := make([]string, len(m.coins))
 		for i, c := range m.coins {
@@ -118,18 +116,18 @@ func (m AppModel) cmdRefresh() tea.Cmd {
 		}
 
 		// Fetch fresh prices
-		prices, err := m.client.FetchPrices(ctx, apiIDs)
+		prices, err := m.client.FetchPrices(m.ctx, apiIDs)
 		if err != nil {
 			return errMsg{err: err}
 		}
 
 		// Update prices in store
-		if err := m.store.UpdatePrices(ctx, prices); err != nil {
+		if err := m.store.UpdatePrices(m.ctx, prices); err != nil {
 			return errMsg{err: err}
 		}
 
 		// Read back updated coins
-		updatedCoins, err := m.store.GetAllCoins(ctx)
+		updatedCoins, err := m.store.GetAllCoins(m.ctx)
 		if err != nil {
 			return errMsg{err: err}
 		}
