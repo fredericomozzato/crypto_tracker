@@ -1,5 +1,5 @@
 ---
-status: in_progress
+status: done
 branch: feat/004-auto-refresh-status-bar
 ---
 
@@ -28,7 +28,7 @@ What's missing for Slice 4:
 From roadmap bullets:
 - 5 s ticker → checks if 60 s elapsed → fires `cmdRefresh` via `/simple/price`
 - Manual refresh with `r` (no-op if already refreshing) — already implemented, just wired to status bar
-- Status bar: `synced Xs ago` / `refreshing...` / `error: <message>` / `loading...`
+- Status bar: `Synced` (green) / `Stale` (yellow, > 5 min since last refresh) / `Refreshing` (gray) / `error: <message>` (red) / `loading...` (gray)
 - Error propagation via typed `errMsg`, non-fatal — keeps table usable with stale data
 - **TDD:** tick/refresh state transitions, error display logic
 
@@ -103,11 +103,16 @@ case pricesUpdatedMsg:
     m.lastRefreshed = time.Now()
 ```
 
-New `statusRight()` helper (priority: refreshing > error > loading > synced):
+Constant for stale detection:
+```go
+const staleThreshold = 5 * time.Minute
+```
+
+`statusRight()` helper (priority: refreshing > error > loading > stale > synced):
 ```go
 func (m AppModel) statusRight() string {
     if m.refreshing {
-        return "refreshing..."
+        return "Refreshing"
     }
     if m.lastErr != "" {
         return "error: " + m.lastErr
@@ -115,31 +120,33 @@ func (m AppModel) statusRight() string {
     if m.lastRefreshed.IsZero() {
         return "loading..."
     }
-    elapsed := time.Since(m.lastRefreshed)
-    switch {
-    case elapsed < time.Minute:
-        return fmt.Sprintf("synced %ds ago", int(elapsed.Seconds()))
-    case elapsed < time.Hour:
-        return fmt.Sprintf("synced %dm ago", int(elapsed.Minutes()))
-    default:
-        return fmt.Sprintf("synced %dh ago", int(elapsed.Hours()))
+    if time.Since(m.lastRefreshed) > staleThreshold {
+        return "Stale"
     }
+    return "Synced"
 }
 ```
 
-New `renderStatusBar()` helper — left/right layout using `lipgloss`:
+`renderStatusBar()` helper — left/right layout with per-state color:
 ```go
 func (m AppModel) renderStatusBar() string {
     leftContent := "j/k navigate • g/G top/bottom • r refresh • q quit"
     rightContent := m.statusRight()
 
-    grayStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
-    errStyle  := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF4444"))
+    grayStyle   := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
+    errStyle    := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF4444"))
+    greenStyle  := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
+    yellowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
 
     var rightStyled string
-    if m.lastErr != "" && !m.refreshing {
+    switch rightContent {
+    case "Synced":
+        rightStyled = greenStyle.Render(rightContent)
+    case "Stale":
+        rightStyled = yellowStyle.Render(rightContent)
+    case "error: " + m.lastErr:
         rightStyled = errStyle.Render(rightContent)
-    } else {
+    default:
         rightStyled = grayStyle.Render(rightContent)
     }
 
@@ -189,9 +196,10 @@ Imports to add: `"time"`
 | `TestCoinsLoadedSetsLastRefreshed` | `coinsLoadedMsg` sets `lastRefreshed` to a non-zero time |
 | `TestPricesUpdatedSetsLastRefreshed` | `pricesUpdatedMsg` sets `lastRefreshed` to a non-zero time |
 | `TestStatusBarShowsLoading` | View with zero coins and no error → status bar right contains `loading...` |
-| `TestStatusBarShowsRefreshing` | View with `refreshing = true` → status bar right contains `refreshing...` |
-| `TestStatusBarShowsError` | View with `lastErr = "some error"` → status bar right contains `error: some error` |
-| `TestStatusBarShowsSyncedAgo` | View after `coinsLoadedMsg` → status bar right contains `synced` and `ago` |
+| `TestStatusBarShowsRefreshing` | `statusRight()` with `refreshing = true` → returns `"Refreshing"` |
+| `TestStatusBarShowsError` | `statusRight()` with `lastErr = "some error"` → returns `"error: some error"` |
+| `TestStatusBarShowsSynced` | `statusRight()` with recent `lastRefreshed` → returns `"Synced"` |
+| `TestStatusBarShowsStale` | `statusRight()` with `lastRefreshed` 6 min ago → returns `"Stale"` |
 | `TestTableRendersWhileError` | View with coins loaded + `lastErr != ""` → view still contains coin names AND error text |
 | `TestInitReturnsBatchedCmd` | `Init()` returns a non-nil cmd (batch of load + tick) |
 | `TestStatusBarHasHintsOnLeft` | View with coins loaded → status bar contains `j/k navigate` |
