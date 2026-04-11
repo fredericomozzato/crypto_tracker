@@ -1,14 +1,53 @@
 package ui
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fredericomozzato/crypto_tracker/internal/store"
 )
 
+// StubStore implements store.Store for testing
+type StubStore struct {
+	coins []store.Coin
+	err   error
+}
+
+func (s *StubStore) UpsertCoin(ctx context.Context, c store.Coin) error {
+	return s.err
+}
+
+func (s *StubStore) GetAllCoins(ctx context.Context) ([]store.Coin, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.coins, nil
+}
+
+func (s *StubStore) Close() error {
+	return nil
+}
+
+// StubAPI implements api.CoinGeckoClient for testing
+type StubAPI struct {
+	coins []store.Coin
+	err   error
+}
+
+func (a *StubAPI) FetchMarkets(ctx context.Context, limit int) ([]store.Coin, error) {
+	if a.err != nil {
+		return nil, a.err
+	}
+	return a.coins, nil
+}
+
 func TestNewAppModel(t *testing.T) {
-	m := NewAppModel()
+	store := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(store, api)
 	// Verify the model renders without panicking; a zero-dimension model
 	// should still produce output (the "too small" message).
 	view := m.View()
@@ -18,7 +57,9 @@ func TestNewAppModel(t *testing.T) {
 }
 
 func TestQuitOnQ(t *testing.T) {
-	m := NewAppModel()
+	store := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(store, api)
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")}
 	_, cmd := m.Update(msg)
 
@@ -33,7 +74,9 @@ func TestQuitOnQ(t *testing.T) {
 }
 
 func TestQuitOnCtrlC(t *testing.T) {
-	m := NewAppModel()
+	store := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(store, api)
 	msg := tea.KeyMsg{Type: tea.KeyCtrlC}
 	_, cmd := m.Update(msg)
 
@@ -48,7 +91,9 @@ func TestQuitOnCtrlC(t *testing.T) {
 }
 
 func TestWindowSizeMsg(t *testing.T) {
-	m := NewAppModel()
+	store := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(store, api)
 	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
 	updated, _ := m.Update(msg)
 
@@ -65,31 +110,10 @@ func TestWindowSizeMsg(t *testing.T) {
 	}
 }
 
-func TestViewRendersPlaceholder(t *testing.T) {
-	m := NewAppModel()
-	// Set dimensions so View can render properly
-	m.width = 100
-	m.height = 30
-	view := m.View()
-
-	if view == "" {
-		t.Fatal("expected non-empty view")
-	}
-
-	// Check that the placeholder text is present
-	expected := "crypto-tracker"
-	if !strings.Contains(view, expected) {
-		t.Errorf("expected view to contain %q, got %q", expected, view)
-	}
-
-	expectedQuit := "press q to quit"
-	if !strings.Contains(view, expectedQuit) {
-		t.Errorf("expected view to contain %q, got %q", expectedQuit, view)
-	}
-}
-
 func TestIgnoresOtherKeys(t *testing.T) {
-	m := NewAppModel()
+	store := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(store, api)
 	otherKeys := []rune{'a', 'b', 'c', 'x', 'z', '1', ' '}
 	for _, key := range otherKeys {
 		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{key}}
@@ -97,5 +121,103 @@ func TestIgnoresOtherKeys(t *testing.T) {
 		if cmd != nil {
 			t.Errorf("expected nil cmd for key %q, got non-nil cmd", key)
 		}
+	}
+}
+
+func TestInitReturnsCmd(t *testing.T) {
+	store := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(store, api)
+	cmd := m.Init()
+
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from Init, got nil")
+	}
+}
+
+func TestCoinsLoadedMsg(t *testing.T) {
+	s := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(s, api)
+	m.width = 100
+	m.height = 30
+
+	coin := store.Coin{
+		ApiID:       "bitcoin",
+		Name:        "Bitcoin",
+		Ticker:      "BTC",
+		Rate:        67000.00,
+		PriceChange: -1.23,
+		MarketRank:  1,
+	}
+
+	coins := []store.Coin{coin}
+
+	msg := coinsLoadedMsg{coins: coins}
+	updated, _ := m.Update(msg)
+
+	model, ok := updated.(AppModel)
+	if !ok {
+		t.Fatalf("expected AppModel, got %T", updated)
+	}
+
+	view := model.View()
+	if view == "" {
+		t.Fatal("expected non-empty view")
+	}
+
+	if !strings.Contains(view, "Bitcoin") {
+		t.Errorf("expected view to contain 'Bitcoin', got %q", view)
+	}
+
+	if !strings.Contains(view, "BTC") {
+		t.Errorf("expected view to contain 'BTC', got %q", view)
+	}
+
+	if !strings.Contains(view, "67000") {
+		t.Errorf("expected view to contain price, got %q", view)
+	}
+}
+
+func TestErrMsg(t *testing.T) {
+	store := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(store, api)
+	m.width = 100
+	m.height = 30
+
+	testErr := "connection failed"
+	msg := errMsg{err: errors.New(testErr)}
+	updated, _ := m.Update(msg)
+
+	model, ok := updated.(AppModel)
+	if !ok {
+		t.Fatalf("expected AppModel, got %T", updated)
+	}
+
+	view := model.View()
+	if view == "" {
+		t.Fatal("expected non-empty view")
+	}
+
+	if !strings.Contains(view, testErr) {
+		t.Errorf("expected view to contain error %q, got %q", testErr, view)
+	}
+}
+
+func TestViewRendersLoading(t *testing.T) {
+	store := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(store, api)
+	m.width = 100
+	m.height = 30
+
+	view := m.View()
+	if view == "" {
+		t.Fatal("expected non-empty view")
+	}
+
+	if !strings.Contains(view, "loading") {
+		t.Errorf("expected view to contain 'loading', got %q", view)
 	}
 }
