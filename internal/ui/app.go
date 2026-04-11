@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,16 +16,17 @@ import (
 
 // AppModel is the root Bubble Tea model for the crypto-tracker TUI.
 type AppModel struct {
-	width      int
-	height     int
-	ctx        context.Context
-	store      store.Store
-	client     api.CoinGeckoClient
-	coins      []store.Coin
-	lastErr    string
-	refreshing bool
-	cursor     int // index of selected row in m.coins
-	offset     int // index of first visible row (viewport scroll)
+	width         int
+	height        int
+	ctx           context.Context
+	store         store.Store
+	client        api.CoinGeckoClient
+	coins         []store.Coin
+	lastErr       string
+	refreshing    bool
+	lastRefreshed time.Time
+	cursor        int
+	offset        int
 }
 
 // coinsLoadedMsg is sent when coins are successfully loaded from the API.
@@ -42,6 +44,9 @@ type pricesUpdatedMsg struct {
 	coins []store.Coin
 }
 
+// tickMsg fires every 5 seconds from cmdTick.
+type tickMsg time.Time
+
 // NewAppModel creates a new AppModel with the given dependencies.
 func NewAppModel(ctx context.Context, s store.Store, c api.CoinGeckoClient) AppModel {
 	return AppModel{
@@ -49,6 +54,13 @@ func NewAppModel(ctx context.Context, s store.Store, c api.CoinGeckoClient) AppM
 		store:  s,
 		client: c,
 	}
+}
+
+// cmdTick returns a command that fires a tickMsg after 5 seconds.
+func cmdTick() tea.Cmd {
+	return tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
 }
 
 // Init is the Bubble Tea init command. Fetches initial coin data.
@@ -118,6 +130,13 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+	case tickMsg:
+		cmds := []tea.Cmd{cmdTick()}
+		if !m.refreshing && len(m.coins) > 0 && time.Since(m.lastRefreshed) >= 60*time.Second {
+			m.refreshing = true
+			cmds = append(cmds, m.cmdRefresh())
+		}
+		return m, tea.Batch(cmds...)
 	case coinsLoadedMsg:
 		m.coins = msg.coins
 		m.lastErr = ""

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fredericomozzato/crypto_tracker/internal/store"
@@ -590,5 +591,86 @@ func TestCursorClampedAfterCoinsLoaded(t *testing.T) {
 	model := updated.(AppModel)
 	if model.cursor != 2 {
 		t.Errorf("expected cursor clamped to 2 (last index), got %d", model.cursor)
+	}
+}
+
+func TestTickMsgAlwaysReissuesTicker(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+
+	updated, cmd := m.Update(tickMsg(time.Now()))
+	model := updated.(AppModel)
+
+	if cmd == nil {
+		t.Error("expected non-nil cmd from tickMsg (ticker should be re-armed)")
+	}
+	_ = model
+}
+
+func TestTickMsgBelow60sDoesNotRefresh(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now().Add(-30 * time.Second)
+
+	updated, _ := m.Update(tickMsg(time.Now()))
+	model := updated.(AppModel)
+
+	if model.refreshing {
+		t.Error("expected refreshing to stay false when 60s not elapsed")
+	}
+}
+
+func TestTickMsgAbove60sFiresRefresh(t *testing.T) {
+	stub := &StubStore{coins: threeCoins()}
+	api := &StubAPI{prices: map[string]float64{"coin-1": 100.0}}
+	m := NewAppModel(context.Background(), stub, api)
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now().Add(-61 * time.Second)
+	m.refreshing = false
+
+	updated, cmd := m.Update(tickMsg(time.Now()))
+	model := updated.(AppModel)
+
+	if !model.refreshing {
+		t.Error("expected refreshing to be true when 60+ seconds elapsed")
+	}
+	if cmd == nil {
+		t.Error("expected non-nil cmd when refresh fires")
+	}
+}
+
+func TestTickMsgWhenAlreadyRefreshing(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now().Add(-61 * time.Second)
+	m.refreshing = true
+
+	updated, cmd := m.Update(tickMsg(time.Now()))
+	model := updated.(AppModel)
+
+	if !model.refreshing {
+		t.Error("expected refreshing to remain true")
+	}
+	if cmd == nil {
+		t.Error("expected non-nil cmd (ticker re-arm) even when already refreshing")
+	}
+}
+
+func TestTickMsgWhenNoCoins(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.lastRefreshed = time.Now().Add(-61 * time.Second)
+
+	updated, _ := m.Update(tickMsg(time.Now()))
+	model := updated.(AppModel)
+
+	if model.refreshing {
+		t.Error("expected no refresh when no coins loaded")
 	}
 }
