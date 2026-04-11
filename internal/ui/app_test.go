@@ -57,9 +57,9 @@ func (a *StubAPI) FetchPrices(ctx context.Context, apiIDs []string) (map[string]
 }
 
 func TestNewAppModel(t *testing.T) {
-	store := &StubStore{}
+	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewAppModel(context.Background(), store, api)
+	m := NewAppModel(context.Background(), stub, api)
 	// Verify the model renders without panicking; a zero-dimension model
 	// should still produce output (the "too small" message).
 	view := m.View()
@@ -69,9 +69,9 @@ func TestNewAppModel(t *testing.T) {
 }
 
 func TestQuitOnQ(t *testing.T) {
-	store := &StubStore{}
+	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewAppModel(context.Background(), store, api)
+	m := NewAppModel(context.Background(), stub, api)
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")}
 	_, cmd := m.Update(msg)
 
@@ -86,9 +86,9 @@ func TestQuitOnQ(t *testing.T) {
 }
 
 func TestQuitOnCtrlC(t *testing.T) {
-	store := &StubStore{}
+	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewAppModel(context.Background(), store, api)
+	m := NewAppModel(context.Background(), stub, api)
 	msg := tea.KeyMsg{Type: tea.KeyCtrlC}
 	_, cmd := m.Update(msg)
 
@@ -103,9 +103,9 @@ func TestQuitOnCtrlC(t *testing.T) {
 }
 
 func TestWindowSizeMsg(t *testing.T) {
-	store := &StubStore{}
+	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewAppModel(context.Background(), store, api)
+	m := NewAppModel(context.Background(), stub, api)
 	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
 	updated, _ := m.Update(msg)
 
@@ -123,9 +123,9 @@ func TestWindowSizeMsg(t *testing.T) {
 }
 
 func TestIgnoresOtherKeys(t *testing.T) {
-	store := &StubStore{}
+	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewAppModel(context.Background(), store, api)
+	m := NewAppModel(context.Background(), stub, api)
 	otherKeys := []rune{'a', 'b', 'c', 'x', 'z', '1', ' '}
 	for _, key := range otherKeys {
 		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{key}}
@@ -137,9 +137,9 @@ func TestIgnoresOtherKeys(t *testing.T) {
 }
 
 func TestInitReturnsCmd(t *testing.T) {
-	store := &StubStore{}
+	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewAppModel(context.Background(), store, api)
+	m := NewAppModel(context.Background(), stub, api)
 	cmd := m.Init()
 
 	if cmd == nil {
@@ -192,9 +192,9 @@ func TestCoinsLoadedMsg(t *testing.T) {
 }
 
 func TestErrMsg(t *testing.T) {
-	store := &StubStore{}
+	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewAppModel(context.Background(), store, api)
+	m := NewAppModel(context.Background(), stub, api)
 	m.width = 100
 	m.height = 30
 
@@ -218,9 +218,9 @@ func TestErrMsg(t *testing.T) {
 }
 
 func TestViewRendersLoading(t *testing.T) {
-	store := &StubStore{}
+	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewAppModel(context.Background(), store, api)
+	m := NewAppModel(context.Background(), stub, api)
 	m.width = 100
 	m.height = 30
 
@@ -264,12 +264,12 @@ func TestRefreshKeyReturnsCmdWhenCoinsLoaded(t *testing.T) {
 }
 
 func TestRefreshKeyIgnoredWhenAlreadyRefreshing(t *testing.T) {
-	store := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
+	stub := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
 	api := &StubAPI{}
-	m := NewAppModel(context.Background(), store, api)
+	m := NewAppModel(context.Background(), stub, api)
 	m.width = 100
 	m.height = 30
-	m.coins = store.coins
+	m.coins = stub.coins
 	m.refreshing = true
 
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
@@ -281,9 +281,9 @@ func TestRefreshKeyIgnoredWhenAlreadyRefreshing(t *testing.T) {
 }
 
 func TestRefreshKeyIgnoredWhenNoCoins(t *testing.T) {
-	store := &StubStore{}
+	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewAppModel(context.Background(), store, api)
+	m := NewAppModel(context.Background(), stub, api)
 	m.width = 100
 	m.height = 30
 
@@ -322,12 +322,12 @@ func TestPricesUpdatedMsg(t *testing.T) {
 }
 
 func TestViewShowsRefreshHint(t *testing.T) {
-	store := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
+	stub := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
 	api := &StubAPI{}
-	m := NewAppModel(context.Background(), store, api)
+	m := NewAppModel(context.Background(), stub, api)
 	m.width = 100
 	m.height = 30
-	m.coins = store.coins
+	m.coins = stub.coins
 
 	view := m.View()
 	if !strings.Contains(view, "r to refresh") {
@@ -336,12 +336,12 @@ func TestViewShowsRefreshHint(t *testing.T) {
 }
 
 func TestViewShowsRefreshingIndicator(t *testing.T) {
-	store := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
+	stub := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
 	api := &StubAPI{}
-	m := NewAppModel(context.Background(), store, api)
+	m := NewAppModel(context.Background(), stub, api)
 	m.width = 100
 	m.height = 30
-	m.coins = store.coins
+	m.coins = stub.coins
 	m.refreshing = true
 
 	view := m.View()
