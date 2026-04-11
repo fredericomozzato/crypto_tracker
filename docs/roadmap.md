@@ -36,7 +36,7 @@ We have to respect the CoinGecko API's rate limiting. So we CAN'T run a request 
 If you find a more efficient solution you're allowed to implement it, but ensure we never hit rate limitings when updating the coins or using the app.
 
 ## Slice 4 — Auto-refresh + status bar
-STATUS: PENDING
+STATUS: IN_PROGRESS
 
 - 5s ticker → checks if 60s elapsed → fires `cmdRefresh` via `/simple/price`
 - Manual refresh with `r` (no-op if already refreshing)
