@@ -12,6 +12,9 @@ import (
 	"syscall"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fredericomozzato/crypto_tracker/internal/api"
+	"github.com/fredericomozzato/crypto_tracker/internal/db"
+	"github.com/fredericomozzato/crypto_tracker/internal/store"
 	"github.com/fredericomozzato/crypto_tracker/internal/ui"
 )
 
@@ -29,7 +32,33 @@ func realMain() int {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	model := ui.NewAppModel()
+	// Open database
+	dbPath, err := dataFilePath()
+	if err != nil {
+		slog.Error("determining data path", "error", err)
+		return 1
+	}
+
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		slog.Error("opening database", "error", err)
+		return 1
+	}
+
+	// Create store
+	s := store.NewSQLiteStore(database)
+	defer func() {
+		if err := s.Close(); err != nil {
+			slog.Error("closing store", "error", err)
+		}
+	}()
+
+	// Create API client
+	apiKey := os.Getenv("COINGECKO_API_KEY")
+	client := api.NewHTTPClient(apiKey)
+
+	// Create model with dependencies
+	model := ui.NewAppModel(ctx, s, client)
 
 	p := tea.NewProgram(
 		model,
@@ -85,4 +114,16 @@ func logFilePath() (string, error) {
 		stateDir = filepath.Join(home, ".local", "state")
 	}
 	return filepath.Join(stateDir, "crypto_tracker", "app.log"), nil
+}
+
+func dataFilePath() (string, error) {
+	dataDir := os.Getenv("XDG_DATA_HOME")
+	if dataDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("determining home directory: %w", err)
+		}
+		dataDir = filepath.Join(home, ".local", "share")
+	}
+	return filepath.Join(dataDir, "crypto_tracker", "data.db"), nil
 }
