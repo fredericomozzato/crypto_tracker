@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,16 +16,17 @@ import (
 
 // AppModel is the root Bubble Tea model for the crypto-tracker TUI.
 type AppModel struct {
-	width      int
-	height     int
-	ctx        context.Context
-	store      store.Store
-	client     api.CoinGeckoClient
-	coins      []store.Coin
-	lastErr    string
-	refreshing bool
-	cursor     int // index of selected row in m.coins
-	offset     int // index of first visible row (viewport scroll)
+	width         int
+	height        int
+	ctx           context.Context
+	store         store.Store
+	client        api.CoinGeckoClient
+	coins         []store.Coin
+	lastErr       string
+	refreshing    bool
+	lastRefreshed time.Time
+	cursor        int
+	offset        int
 }
 
 // coinsLoadedMsg is sent when coins are successfully loaded from the API.
@@ -42,6 +44,12 @@ type pricesUpdatedMsg struct {
 	coins []store.Coin
 }
 
+// tickMsg fires every 5 seconds from cmdTick.
+type tickMsg time.Time
+
+// staleThreshold is the duration after which data is considered stale.
+const staleThreshold = 5 * time.Minute
+
 // NewAppModel creates a new AppModel with the given dependencies.
 func NewAppModel(ctx context.Context, s store.Store, c api.CoinGeckoClient) AppModel {
 	return AppModel{
@@ -51,8 +59,20 @@ func NewAppModel(ctx context.Context, s store.Store, c api.CoinGeckoClient) AppM
 	}
 }
 
+// cmdTick returns a command that fires a tickMsg after 5 seconds.
+func cmdTick() tea.Cmd {
+	return tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
+
 // Init is the Bubble Tea init command. Fetches initial coin data.
 func (m AppModel) Init() tea.Cmd {
+	return tea.Batch(m.cmdLoad(), cmdTick())
+}
+
+// cmdLoad returns a command that loads coins from the database or fetches from API.
+func (m AppModel) cmdLoad() tea.Cmd {
 	return func() tea.Msg {
 		existing, err := m.store.GetAllCoins(m.ctx)
 		if err != nil {
@@ -118,9 +138,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+	case tickMsg:
+		cmds := []tea.Cmd{cmdTick()}
+		if !m.refreshing && len(m.coins) > 0 && time.Since(m.lastRefreshed) >= 60*time.Second {
+			m.refreshing = true
+			cmds = append(cmds, m.cmdRefresh())
+		}
+		return m, tea.Batch(cmds...)
 	case coinsLoadedMsg:
 		m.coins = msg.coins
 		m.lastErr = ""
+		m.lastRefreshed = time.Now()
 		if m.cursor >= len(m.coins) && len(m.coins) > 0 {
 			m.cursor = len(m.coins) - 1
 		}
@@ -131,6 +159,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.coins = msg.coins
 		m.refreshing = false
 		m.lastErr = ""
+		m.lastRefreshed = time.Now()
 	case errMsg:
 		m.lastErr = msg.err.Error()
 		m.refreshing = false
@@ -171,18 +200,8 @@ func (m AppModel) cmdRefresh() tea.Cmd {
 
 // View renders the current state of the app.
 func (m AppModel) View() string {
-	// Check minimum terminal size
 	if m.width < 100 || m.height < 30 {
 		return "Terminal too small — resize to at least 100×30"
-	}
-
-	switch {
-	case m.lastErr != "":
-		return lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF0000")).
-			Render("Error: " + m.lastErr)
-	case len(m.coins) == 0:
-		return "loading..."
 	}
 
 	h := m.tableHeight()
@@ -191,7 +210,10 @@ func (m AppModel) View() string {
 		end = len(m.coins)
 	}
 
-	// Column widths
+	if len(m.coins) == 0 {
+		return "loading...\n" + m.renderStatusBar()
+	}
+
 	wRank := 4
 	wName := 22
 	wTicker := 8
@@ -202,7 +224,6 @@ func (m AppModel) View() string {
 	green := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
 	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
 
-	// Header
 	header := fmt.Sprintf(
 		"%*s  %-*s  %-*s  %*s  %*s",
 		wRank, "#",
@@ -242,17 +263,59 @@ func (m AppModel) View() string {
 		lines = append(lines, line)
 	}
 
-	// Pad remaining rows
 	for len(lines)-1 < h {
 		lines = append(lines, "")
 	}
 
-	// Hint line
-	hint := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#888888")).
-		Render("j/k navigate • g/G top/bottom • r refresh • q quit")
+	return strings.Join(lines, "\n") + "\n" + m.renderStatusBar()
+}
 
-	return strings.Join(lines, "\n") + "\n" + hint
+// statusRight returns the right-hand portion of the status bar.
+func (m AppModel) statusRight() string {
+	if m.refreshing {
+		return "Refreshing"
+	}
+	if m.lastErr != "" {
+		return "error: " + m.lastErr
+	}
+	if m.lastRefreshed.IsZero() {
+		return "loading..."
+	}
+	if time.Since(m.lastRefreshed) > staleThreshold {
+		return "Stale"
+	}
+	return "Synced"
+}
+
+// renderStatusBar returns a two-sided status bar with hints on the left and
+// sync status on the right.
+func (m AppModel) renderStatusBar() string {
+	leftContent := "j/k navigate • g/G top/bottom • r refresh • q quit"
+	rightContent := m.statusRight()
+
+	grayStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
+	errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF4444"))
+	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
+	yellowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
+
+	var rightStyled string
+	switch rightContent {
+	case "Synced":
+		rightStyled = greenStyle.Render(rightContent)
+	case "Stale":
+		rightStyled = yellowStyle.Render(rightContent)
+	case "error: " + m.lastErr:
+		rightStyled = errStyle.Render(rightContent)
+	default:
+		rightStyled = grayStyle.Render(rightContent)
+	}
+
+	leftStyled := grayStyle.Render(leftContent)
+	padding := m.width - lipgloss.Width(leftContent) - lipgloss.Width(rightContent)
+	if padding < 1 {
+		padding = 1
+	}
+	return leftStyled + strings.Repeat(" ", padding) + rightStyled
 }
 
 // moveCursor moves the cursor by delta and adjusts the viewport.

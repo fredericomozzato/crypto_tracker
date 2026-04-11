@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fredericomozzato/crypto_tracker/internal/store"
@@ -149,7 +150,7 @@ func TestIgnoresOtherKeys(t *testing.T) {
 	}
 }
 
-func TestInitReturnsCmd(t *testing.T) {
+func TestInitReturnsBatchedCmd(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
 	m := NewAppModel(context.Background(), stub, api)
@@ -397,8 +398,7 @@ func TestInitFetchesHundredCoinsOnFirstLaunch(t *testing.T) {
 	s := &StubStore{}
 	m := NewAppModel(context.Background(), s, api)
 
-	cmd := m.Init()
-	msg := cmd()
+	msg := executeInitBatch(t, m)
 
 	loaded, ok := msg.(coinsLoadedMsg)
 	if !ok {
@@ -418,8 +418,7 @@ func TestInitLoadsFromDBOnSubsequentLaunch(t *testing.T) {
 	s := &StubStore{coins: coins}
 	m := NewAppModel(context.Background(), s, api)
 
-	cmd := m.Init()
-	msg := cmd()
+	msg := executeInitBatch(t, m)
 
 	loaded, ok := msg.(coinsLoadedMsg)
 	if !ok {
@@ -440,8 +439,7 @@ func TestInitRefetchesWhenDBPartiallySeeded(t *testing.T) {
 	s := &StubStore{coins: partial}
 	m := NewAppModel(context.Background(), s, api)
 
-	cmd := m.Init()
-	msg := cmd()
+	msg := executeInitBatch(t, m)
 
 	loaded, ok := msg.(coinsLoadedMsg)
 	if !ok {
@@ -453,6 +451,27 @@ func TestInitRefetchesWhenDBPartiallySeeded(t *testing.T) {
 	if len(api.fetchMarketsCalls) != 1 || api.fetchMarketsCalls[0] != 100 {
 		t.Errorf("expected FetchMarkets called with 100, got %v", api.fetchMarketsCalls)
 	}
+}
+
+// executeInitBatch runs the batched command from Init() and returns the first
+// coinsLoadedMsg or errMsg found.
+func executeInitBatch(t *testing.T, m AppModel) tea.Msg {
+	t.Helper()
+	cmd := m.Init()
+	result := cmd()
+	batch, ok := result.(tea.BatchMsg)
+	if !ok {
+		return result
+	}
+	for _, c := range batch {
+		msg := c()
+		switch msg.(type) {
+		case coinsLoadedMsg, errMsg:
+			return msg
+		}
+	}
+	t.Fatal("no coinsLoadedMsg or errMsg in batch")
+	return nil
 }
 
 func threeCoins() []store.Coin {
@@ -590,5 +609,234 @@ func TestCursorClampedAfterCoinsLoaded(t *testing.T) {
 	model := updated.(AppModel)
 	if model.cursor != 2 {
 		t.Errorf("expected cursor clamped to 2 (last index), got %d", model.cursor)
+	}
+}
+
+func TestTickMsgAlwaysReissuesTicker(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+
+	updated, cmd := m.Update(tickMsg(time.Now()))
+	model := updated.(AppModel)
+
+	if cmd == nil {
+		t.Error("expected non-nil cmd from tickMsg (ticker should be re-armed)")
+	}
+	_ = model
+}
+
+func TestTickMsgBelow60sDoesNotRefresh(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now().Add(-30 * time.Second)
+
+	updated, _ := m.Update(tickMsg(time.Now()))
+	model := updated.(AppModel)
+
+	if model.refreshing {
+		t.Error("expected refreshing to stay false when 60s not elapsed")
+	}
+}
+
+func TestTickMsgAbove60sFiresRefresh(t *testing.T) {
+	stub := &StubStore{coins: threeCoins()}
+	api := &StubAPI{prices: map[string]float64{"coin-1": 100.0}}
+	m := NewAppModel(context.Background(), stub, api)
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now().Add(-61 * time.Second)
+	m.refreshing = false
+
+	updated, cmd := m.Update(tickMsg(time.Now()))
+	model := updated.(AppModel)
+
+	if !model.refreshing {
+		t.Error("expected refreshing to be true when 60+ seconds elapsed")
+	}
+	if cmd == nil {
+		t.Error("expected non-nil cmd when refresh fires")
+	}
+}
+
+func TestTickMsgWhenAlreadyRefreshing(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now().Add(-61 * time.Second)
+	m.refreshing = true
+
+	updated, cmd := m.Update(tickMsg(time.Now()))
+	model := updated.(AppModel)
+
+	if !model.refreshing {
+		t.Error("expected refreshing to remain true")
+	}
+	if cmd == nil {
+		t.Error("expected non-nil cmd (ticker re-arm) even when already refreshing")
+	}
+}
+
+func TestTickMsgWhenNoCoins(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.lastRefreshed = time.Now().Add(-61 * time.Second)
+
+	updated, _ := m.Update(tickMsg(time.Now()))
+	model := updated.(AppModel)
+
+	if model.refreshing {
+		t.Error("expected no refresh when no coins loaded")
+	}
+}
+
+func TestCoinsLoadedSetsLastRefreshed(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	if !m.lastRefreshed.IsZero() {
+		t.Error("expected lastRefreshed to be zero initially")
+	}
+
+	updated, _ := m.Update(coinsLoadedMsg{coins: threeCoins()})
+	model := updated.(AppModel)
+
+	if model.lastRefreshed.IsZero() {
+		t.Error("expected lastRefreshed to be set after coinsLoadedMsg")
+	}
+}
+
+func TestPricesUpdatedSetsLastRefreshed(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.refreshing = true
+
+	updated, _ := m.Update(pricesUpdatedMsg{coins: threeCoins()})
+	model := updated.(AppModel)
+
+	if model.lastRefreshed.IsZero() {
+		t.Error("expected lastRefreshed to be set after pricesUpdatedMsg")
+	}
+	if model.refreshing {
+		t.Error("expected refreshing to be false after pricesUpdatedMsg")
+	}
+}
+
+func TestStatusBarShowsLoading(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	right := m.statusRight()
+	if right != "loading..." {
+		t.Errorf("expected statusRight 'loading...', got %q", right)
+	}
+}
+
+func TestStatusBarShowsRefreshing(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.refreshing = true
+	m.lastRefreshed = time.Now()
+
+	right := m.statusRight()
+	if right != "Refreshing" {
+		t.Errorf("expected statusRight 'Refreshing', got %q", right)
+	}
+}
+
+func TestStatusBarShowsError(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.lastErr = "some error"
+	m.lastRefreshed = time.Now()
+
+	right := m.statusRight()
+	if right != "error: some error" {
+		t.Errorf("expected statusRight 'error: some error', got %q", right)
+	}
+}
+
+func TestStatusBarShowsSynced(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now()
+
+	right := m.statusRight()
+	if right != "Synced" {
+		t.Errorf("expected statusRight 'Synced', got %q", right)
+	}
+}
+
+func TestStatusBarShowsStale(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now().Add(-6 * time.Minute)
+
+	right := m.statusRight()
+	if right != "Stale" {
+		t.Errorf("expected statusRight 'Stale', got %q", right)
+	}
+}
+
+func TestTableRendersWhileError(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now()
+	m.lastErr = "network failed"
+
+	view := m.View()
+	if !strings.Contains(view, "Coin 1") {
+		t.Error("expected view to contain coin names even with error")
+	}
+	if !strings.Contains(view, "error: network failed") {
+		t.Error("expected view to contain error text")
+	}
+}
+
+func TestStatusBarHasHintsOnLeft(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now()
+
+	view := m.View()
+	if !strings.Contains(view, "j/k navigate") {
+		t.Errorf("expected view to contain 'j/k navigate', got %q", view)
 	}
 }

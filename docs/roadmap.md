@@ -36,13 +36,14 @@ We have to respect the CoinGecko API's rate limiting. So we CAN'T run a request 
 If you find a more efficient solution you're allowed to implement it, but ensure we never hit rate limitings when updating the coins or using the app.
 
 ## Slice 4 — Auto-refresh + status bar
-STATUS: PENDING
+STATUS: DONE
 
 - 5s ticker → checks if 60s elapsed → fires `cmdRefresh` via `/simple/price`
 - Manual refresh with `r` (no-op if already refreshing)
-- Status bar: `synced Xs ago` / `refreshing...` / `error: <message>` / `loading...`
-- Error propagation via typed `errMsg`, non-fatal
-- **TDD:** tick/refresh state transitions, error display logic
+- Status bar states: `Synced` (green) / `Stale` (yellow, > 5 min since last refresh) / `Refreshing` (gray) / `error: <message>` (red) / `loading...` (gray)
+- `staleThreshold = 5 * time.Minute` — data is considered stale after 5 minutes without a successful refresh
+- Error propagation via typed `errMsg`, non-fatal — table stays visible with stale data
+- **TDD:** tick/refresh state transitions, error display logic, stale detection
 
 ## Slice 5 — Tab bar + empty Portfolio tab
 STATUS: PENDING
