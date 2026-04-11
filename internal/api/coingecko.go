@@ -17,6 +17,7 @@ import (
 // CoinGeckoClient defines the interface for fetching cryptocurrency market data.
 type CoinGeckoClient interface {
 	FetchMarkets(ctx context.Context, limit int) ([]store.Coin, error)
+	FetchPrices(ctx context.Context, apiIDs []string) (map[string]float64, error)
 }
 
 // HTTPClient implements CoinGeckoClient using HTTP requests.
@@ -104,4 +105,57 @@ func (c *HTTPClient) FetchMarkets(ctx context.Context, limit int) ([]store.Coin,
 	}
 
 	return coins, nil
+}
+
+// coinGeckoPriceResponse represents the response from the /simple/price endpoint.
+type coinGeckoPriceResponse map[string]map[string]float64
+
+// FetchPrices fetches current prices for the given coin API IDs.
+// Returns a map of api_id -> USD price.
+func (c *HTTPClient) FetchPrices(ctx context.Context, apiIDs []string) (map[string]float64, error) {
+	if len(apiIDs) == 0 {
+		return make(map[string]float64), nil
+	}
+
+	params := url.Values{}
+	params.Set("ids", strings.Join(apiIDs, ","))
+	params.Set("vs_currencies", "usd")
+
+	u := c.baseURL + "/simple/prices?" + params.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	if c.apiKey != "" {
+		req.Header.Set("x-cg-demo-api-key", c.apiKey)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetching prices: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("fetching prices: %d %s", resp.StatusCode, string(body))
+	}
+
+	var apiResp coinGeckoPriceResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	prices := make(map[string]float64, len(apiResp))
+	for apiID, priceData := range apiResp {
+		if usdPrice, ok := priceData["usd"]; ok {
+			prices[apiID] = usdPrice
+		}
+	}
+
+	return prices, nil
 }

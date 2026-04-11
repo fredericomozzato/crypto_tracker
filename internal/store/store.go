@@ -18,5 +18,6 @@ type Coin struct {
 type Store interface {
 	UpsertCoin(ctx context.Context, c Coin) error
 	GetAllCoins(ctx context.Context) ([]Coin, error)
+	UpdatePrices(ctx context.Context, prices map[string]float64) error
 	Close() error
 }

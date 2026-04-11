@@ -204,3 +204,113 @@ func TestGetAllCoinsEmpty(t *testing.T) {
 		t.Errorf("expected 0 coins, got %d", len(coins))
 	}
 }
+
+func TestUpdatePrices(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Upsert two coins
+	coins := []Coin{
+		{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00, MarketRank: 1},
+		{ApiID: "ethereum", Name: "Ethereum", Ticker: "ETH", Rate: 3500.00, MarketRank: 2},
+	}
+
+	for _, c := range coins {
+		if err := s.UpsertCoin(ctx, c); err != nil {
+			t.Fatalf("failed to upsert coin %s: %v", c.ApiID, err)
+		}
+	}
+
+	// Update prices
+	newPrices := map[string]float64{
+		"bitcoin":  68000.00,
+		"ethereum": 3600.00,
+	}
+
+	if err := s.UpdatePrices(ctx, newPrices); err != nil {
+		t.Fatalf("failed to update prices: %v", err)
+	}
+
+	// Read back and verify
+	updatedCoins, err := s.GetAllCoins(ctx)
+	if err != nil {
+		t.Fatalf("failed to get all coins: %v", err)
+	}
+
+	for _, c := range updatedCoins {
+		switch c.ApiID {
+		case "bitcoin":
+			if c.Rate != 68000.00 {
+				t.Errorf("expected bitcoin Rate 68000.00, got %f", c.Rate)
+			}
+		case "ethereum":
+			if c.Rate != 3600.00 {
+				t.Errorf("expected ethereum Rate 3600.00, got %f", c.Rate)
+			}
+		}
+
+		if c.UpdatedAt == 0 {
+			t.Errorf("expected UpdatedAt to be set for %s", c.ApiID)
+		}
+	}
+}
+
+func TestUpdatePricesUnknownCoin(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Update prices for a coin that doesn't exist - should not error
+	prices := map[string]float64{
+		"unknown-coin": 100.00,
+	}
+
+	if err := s.UpdatePrices(ctx, prices); err != nil {
+		t.Fatalf("expected no error for unknown coin, got: %v", err)
+	}
+}
+
+func TestUpdatePricesEmpty(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Empty prices map - should not error
+	if err := s.UpdatePrices(ctx, map[string]float64{}); err != nil {
+		t.Fatalf("expected no error for empty prices, got: %v", err)
+	}
+}

@@ -12,12 +12,13 @@ import (
 
 // AppModel is the root Bubble Tea model for the crypto-tracker TUI.
 type AppModel struct {
-	width  int
-	height int
-	store  store.Store
-	client api.CoinGeckoClient
-	coins  []store.Coin
-	errMsg string
+	width      int
+	height     int
+	store      store.Store
+	client     api.CoinGeckoClient
+	coins      []store.Coin
+	errMsg     string
+	refreshing bool
 }
 
 // coinsLoadedMsg is sent when coins are successfully loaded from the API.
@@ -28,6 +29,11 @@ type coinsLoadedMsg struct {
 // errMsg is sent when an error occurs during data fetching.
 type errMsg struct {
 	err error
+}
+
+// pricesUpdatedMsg is sent when prices are successfully refreshed.
+type pricesUpdatedMsg struct {
+	coins []store.Coin
 }
 
 // NewAppModel creates a new AppModel with the given dependencies.
@@ -78,6 +84,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if r == 'q' {
 					return m, tea.Quit
 				}
+				if r == 'r' && !m.refreshing && len(m.coins) > 0 {
+					m.refreshing = true
+					return m, m.cmdRefresh()
+				}
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -85,11 +95,47 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 	case coinsLoadedMsg:
 		m.coins = msg.coins
+	case pricesUpdatedMsg:
+		m.coins = msg.coins
+		m.refreshing = false
 	case errMsg:
 		m.errMsg = msg.err.Error()
+		m.refreshing = false
 	}
 
 	return m, nil
+}
+
+// cmdRefresh returns a command that refreshes prices for all loaded coins.
+func (m AppModel) cmdRefresh() tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+
+		// Build list of API IDs from loaded coins
+		apiIDs := make([]string, len(m.coins))
+		for i, c := range m.coins {
+			apiIDs[i] = c.ApiID
+		}
+
+		// Fetch fresh prices
+		prices, err := m.client.FetchPrices(ctx, apiIDs)
+		if err != nil {
+			return errMsg{err: err}
+		}
+
+		// Update prices in store
+		if err := m.store.UpdatePrices(ctx, prices); err != nil {
+			return errMsg{err: err}
+		}
+
+		// Read back updated coins
+		updatedCoins, err := m.store.GetAllCoins(ctx)
+		if err != nil {
+			return errMsg{err: err}
+		}
+
+		return pricesUpdatedMsg{coins: updatedCoins}
+	}
 }
 
 // View renders the current state of the app.
@@ -110,11 +156,12 @@ func (m AppModel) View() string {
 		// Display the first coin
 		c := m.coins[0]
 		content = fmt.Sprintf(
-			"%s (%s)\nPrice: $%.2f\n24h Change: %.2f%%",
+			"%s (%s)\nPrice: $%.2f\n24h Change: %.2f%%\n\n%s",
 			c.Name,
 			c.Ticker,
 			c.Rate,
 			c.PriceChange,
+			m.refreshHint(),
 		)
 	default:
 		content = "loading..."
@@ -126,4 +173,12 @@ func (m AppModel) View() string {
 		Align(lipgloss.Center, lipgloss.Center)
 
 	return style.Render(content)
+}
+
+// refreshHint returns the hint text for refreshing prices.
+func (m AppModel) refreshHint() string {
+	if m.refreshing {
+		return "refreshing..."
+	}
+	return "r to refresh"
 }

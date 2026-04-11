@@ -74,3 +74,44 @@ func (s *SQLiteStore) GetAllCoins(ctx context.Context) ([]Coin, error) {
 
 	return coins, nil
 }
+
+// UpdatePrices updates the rate and updated_at for coins matching the given api_ids.
+// Unknown api_ids are silently ignored. All updates happen in a single transaction.
+func (s *SQLiteStore) UpdatePrices(ctx context.Context, prices map[string]float64) error {
+	if len(prices) == 0 {
+		return nil
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	stmt, err := tx.PrepareContext(ctx, `
+		UPDATE coins
+		SET rate = ?, updated_at = ?
+		WHERE api_id = ?
+	`)
+	if err != nil {
+		return fmt.Errorf("preparing update statement: %w", err)
+	}
+	defer func() {
+		_ = stmt.Close()
+	}()
+
+	now := time.Now().Unix()
+	for apiID, price := range prices {
+		if _, err := stmt.ExecContext(ctx, price, now, apiID); err != nil {
+			return fmt.Errorf("updating price for %s: %w", apiID, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
+	}
+
+	return nil
+}

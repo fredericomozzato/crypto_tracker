@@ -31,10 +31,15 @@ func (s *StubStore) Close() error {
 	return nil
 }
 
+func (s *StubStore) UpdatePrices(ctx context.Context, prices map[string]float64) error {
+	return s.err
+}
+
 // StubAPI implements api.CoinGeckoClient for testing
 type StubAPI struct {
-	coins []store.Coin
-	err   error
+	coins  []store.Coin
+	prices map[string]float64
+	err    error
 }
 
 func (a *StubAPI) FetchMarkets(ctx context.Context, limit int) ([]store.Coin, error) {
@@ -42,6 +47,13 @@ func (a *StubAPI) FetchMarkets(ctx context.Context, limit int) ([]store.Coin, er
 		return nil, a.err
 	}
 	return a.coins, nil
+}
+
+func (a *StubAPI) FetchPrices(ctx context.Context, apiIDs []string) (map[string]float64, error) {
+	if a.err != nil {
+		return nil, a.err
+	}
+	return a.prices, nil
 }
 
 func TestNewAppModel(t *testing.T) {
@@ -219,5 +231,121 @@ func TestViewRendersLoading(t *testing.T) {
 
 	if !strings.Contains(view, "loading") {
 		t.Errorf("expected view to contain 'loading', got %q", view)
+	}
+}
+
+func TestRefreshKeyReturnsCmdWhenCoinsLoaded(t *testing.T) {
+	storeStub := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
+	api := &StubAPI{prices: map[string]float64{"bitcoin": 68000.00}}
+	m := NewAppModel(storeStub, api)
+	m.width = 100
+	m.height = 30
+
+	// First load coins
+	updated, _ := m.Update(coinsLoadedMsg{coins: storeStub.coins})
+	m = updated.(AppModel)
+
+	// Then press 'r'
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
+	updated, cmd := m.Update(msg)
+
+	model, ok := updated.(AppModel)
+	if !ok {
+		t.Fatalf("expected AppModel, got %T", updated)
+	}
+
+	if !model.refreshing {
+		t.Error("expected refreshing to be true")
+	}
+
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd when pressing r with coins loaded")
+	}
+}
+
+func TestRefreshKeyIgnoredWhenAlreadyRefreshing(t *testing.T) {
+	store := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
+	api := &StubAPI{}
+	m := NewAppModel(store, api)
+	m.width = 100
+	m.height = 30
+	m.coins = store.coins
+	m.refreshing = true
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
+	_, cmd := m.Update(msg)
+
+	if cmd != nil {
+		t.Error("expected nil cmd when already refreshing")
+	}
+}
+
+func TestRefreshKeyIgnoredWhenNoCoins(t *testing.T) {
+	store := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(store, api)
+	m.width = 100
+	m.height = 30
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
+	_, cmd := m.Update(msg)
+
+	if cmd != nil {
+		t.Error("expected nil cmd when no coins loaded")
+	}
+}
+
+func TestPricesUpdatedMsg(t *testing.T) {
+	storeStub := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 68000.00}}}
+	api := &StubAPI{}
+	m := NewAppModel(storeStub, api)
+	m.width = 100
+	m.height = 30
+	m.coins = []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}
+	m.refreshing = true
+
+	msg := pricesUpdatedMsg{coins: storeStub.coins}
+	updated, _ := m.Update(msg)
+
+	model, ok := updated.(AppModel)
+	if !ok {
+		t.Fatalf("expected AppModel, got %T", updated)
+	}
+
+	if model.refreshing {
+		t.Error("expected refreshing to be false after pricesUpdatedMsg")
+	}
+
+	if len(model.coins) != 1 || model.coins[0].Rate != 68000.00 {
+		t.Errorf("expected updated coin with Rate 68000.00, got %v", model.coins)
+	}
+}
+
+func TestViewShowsRefreshHint(t *testing.T) {
+	store := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
+	api := &StubAPI{}
+	m := NewAppModel(store, api)
+	m.width = 100
+	m.height = 30
+	m.coins = store.coins
+
+	view := m.View()
+	if !strings.Contains(view, "r to refresh") {
+		t.Errorf("expected view to contain 'r to refresh', got %q", view)
+	}
+}
+
+func TestViewShowsRefreshingIndicator(t *testing.T) {
+	store := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
+	api := &StubAPI{}
+	m := NewAppModel(store, api)
+	m.width = 100
+	m.height = 30
+	m.coins = store.coins
+	m.refreshing = true
+
+	view := m.View()
+	if !strings.Contains(view, "refreshing...") {
+		t.Errorf("expected view to contain 'refreshing...', got %q", view)
 	}
 }

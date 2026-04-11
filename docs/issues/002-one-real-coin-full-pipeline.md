@@ -17,12 +17,15 @@ works end-to-end. The goal is to have every layer (API client, database, store,
 UI wiring) in place and tested, so that Slice 3 can scale up to 100 coins
 without touching the plumbing.
 
-## Scope (from roadmap)
+## Scope (from roadmap + additions)
 
 - `internal/store/store.go` (Store interface), `internal/store/sqlite.go` (SQLiteStore)
 - `internal/db/db.go` + `schema.sql` (embedded, WAL + FK pragmas)
 - `internal/api/coingecko.go` (CoinGeckoClient interface + HTTP implementation)
 - Fetch 1 coin from `/coins/markets` → upsert into SQLite → read back → display
+- **`r` key triggers a manual price refresh** via `/simple/price` → update store
+  → re-render. This proves the update path (not just the initial load) and
+  exercises both API endpoints end-to-end.
 - **TDD:** store tests with real SQLite via `t.TempDir()`, API tests with `httptest.NewServer`
 
 ## Data model
@@ -70,6 +73,7 @@ Portfolios and holdings tables are not needed yet — they arrive in Slices 6–
 type Store interface {
     UpsertCoin(ctx context.Context, c Coin) error
     GetAllCoins(ctx context.Context) ([]Coin, error)
+    UpdatePrices(ctx context.Context, prices map[string]float64) error
     Close() error
 }
 ```
@@ -99,6 +103,9 @@ type Coin struct {
     — sets `updated_at` to `time.Now().Unix()` (the store owns the timestamp,
     not the caller)
   - `GetAllCoins`: `SELECT ... FROM coins ORDER BY market_rank ASC`
+  - `UpdatePrices(ctx, map[string]float64)`: takes a map of `api_id → price`,
+    updates `rate` and `updated_at` for each matching coin in a single
+    transaction. This is the write path for `/simple/price` refreshes.
   - `Close`: closes the underlying `*sql.DB`
 
 ### 5. `internal/store/sqlite_test.go`
@@ -112,6 +119,10 @@ Tests use a real SQLite database via `t.TempDir()`. No mocks.
    assert `GetAllCoins` returns them sorted by rank ascending
 4. **TestGetAllCoinsEmpty** — no coins inserted, `GetAllCoins` returns empty
    slice (not nil), no error
+5. **TestUpdatePrices** — upsert 2 coins, call `UpdatePrices` with new prices
+   for both, read back, assert `Rate` and `UpdatedAt` changed
+6. **TestUpdatePricesUnknownCoin** — call `UpdatePrices` with an `api_id` that
+   doesn't exist in the DB, assert no error (silently ignored)
 
 ### 6. `internal/api/coingecko.go`
 
@@ -120,11 +131,12 @@ Tests use a real SQLite database via `t.TempDir()`. No mocks.
 ```go
 type CoinGeckoClient interface {
     FetchMarkets(ctx context.Context, limit int) ([]store.Coin, error)
+    FetchPrices(ctx context.Context, apiIDs []string) (map[string]float64, error)
 }
 ```
 
-  `FetchPrices` is not needed until Slice 4 (auto-refresh). Keep the interface
-  minimal for now.
+  Both methods are needed in this slice: `FetchMarkets` for the initial load,
+  `FetchPrices` for the `r` refresh command.
 
 - `HTTPClient` struct (the concrete implementation):
   - Holds `*http.Client` (with 15 s timeout) and `baseURL string`
@@ -142,10 +154,17 @@ type CoinGeckoClient interface {
     - Wraps errors with `fmt.Errorf("fetching markets: %w", err)`
     - On non-2xx status: reads the body and returns
       `fmt.Errorf("fetching markets: %d %s", status, body)`
+  - `FetchPrices(ctx context.Context, apiIDs []string) (map[string]float64, error)`:
+    - Builds URL with `url.Values`: `ids=<comma-joined>`, `vs_currencies=usd`
+    - Returns `map[string]float64` where key is the API ID and value is the
+      USD price (e.g. `{"bitcoin": 67000.00}`)
+    - Same error handling pattern as `FetchMarkets`
 
 ### 7. `internal/api/coingecko_test.go`
 
 Uses `httptest.NewServer` — no real HTTP requests.
+
+**FetchMarkets tests:**
 
 1. **TestFetchMarketsSuccess** — fake server returns valid JSON for 1 coin,
    assert the returned `[]store.Coin` has correct fields
@@ -156,6 +175,13 @@ Uses `httptest.NewServer` — no real HTTP requests.
 4. **TestFetchMarketsContextCancelled** — cancel context before request,
    assert `context.Canceled` error
 
+**FetchPrices tests:**
+
+5. **TestFetchPricesSuccess** — fake server returns
+   `{"bitcoin":{"usd":67000}}`, assert map contains `"bitcoin" → 67000.0`
+6. **TestFetchPricesAPIError** — fake server returns 429, assert error
+   includes status code
+
 ### 8. `internal/ui/app.go` (modify)
 
 - `AppModel` gains a `store.Store` and `api.CoinGeckoClient` dependency
@@ -164,13 +190,24 @@ Uses `httptest.NewServer` — no real HTTP requests.
   upserts it into the store, reads it back, and returns it as a `coinsLoadedMsg`
 - New message types:
   - `coinsLoadedMsg { coins []store.Coin }`
+  - `pricesUpdatedMsg { coins []store.Coin }` — returned after a refresh
   - `errMsg { err error }`
+- New fields on `AppModel`:
+  - `coins []store.Coin` — the loaded coin data
+  - `err string` — last error message (empty = no error)
+  - `refreshing bool` — true while a refresh is in flight (prevents double `r`)
 - `Update` handles:
-  - `coinsLoadedMsg` — stores the coins in the model
-  - `errMsg` — stores the error string for display
+  - `tea.KeyMsg` `r` → if not already refreshing: set `refreshing = true`,
+    return a `tea.Cmd` that calls `FetchPrices` with the API IDs of all loaded
+    coins, then `UpdatePrices` on the store, then `GetAllCoins` to reload,
+    returning a `pricesUpdatedMsg` (or `errMsg` on failure)
+  - `coinsLoadedMsg` — stores the coins, clears error
+  - `pricesUpdatedMsg` — stores the updated coins, clears `refreshing` and error
+  - `errMsg` — stores the error string, clears `refreshing`
 - `View` renders:
   - If coins are loaded: display the coin's name, ticker, price, and 24h change
-    as a simple formatted string (not a table yet — that's Slice 3)
+    as a simple formatted string (not a table yet — that's Slice 3). Include
+    `"r to refresh"` in the hint text and `"refreshing..."` when in flight.
   - If error: display the error
   - If neither: display `"loading..."`
 
@@ -183,6 +220,15 @@ dependencies where not exercised). Add:
    `View()` contains the coin name and price
 2. **TestErrMsg** — send an `errMsg`, assert `View()` contains the error text
 3. **TestInitReturnsCmd** — assert `Init()` returns a non-nil command
+4. **TestRefreshKeyReturnsCmdWhenCoinsLoaded** — load coins first via
+   `coinsLoadedMsg`, then send `r` key, assert a non-nil command is returned
+   and `refreshing` is true
+5. **TestRefreshKeyIgnoredWhenAlreadyRefreshing** — set `refreshing = true`,
+   send `r` key, assert nil command (no double refresh)
+6. **TestRefreshKeyIgnoredWhenNoCoins** — send `r` before any coins are
+   loaded, assert nil command (nothing to refresh)
+7. **TestPricesUpdatedMsg** — send `pricesUpdatedMsg` with updated coins,
+   assert `View()` shows new price and `refreshing` is cleared
 
 ### 10. `cmd/crypto-tracker/main.go` (modify)
 
@@ -215,9 +261,9 @@ Install: `go get modernc.org/sqlite`
 11. Run `make check` — all must pass
 12. Manual smoke test: `go run ./cmd/crypto-tracker` — should show one coin's data
 
-## CoinGecko `/coins/markets` response shape
+## CoinGecko API response shapes
 
-For reference, the relevant fields from the API response:
+### `/coins/markets` (initial load)
 
 ```json
 [
@@ -240,13 +286,30 @@ Map to `store.Coin`:
 - `price_change_percentage_24h` → `PriceChange`
 - `market_cap_rank` → `MarketRank`
 
+### `/simple/price` (refresh)
+
+```json
+{
+  "bitcoin": {
+    "usd": 67123.45
+  }
+}
+```
+
+Map to `map[string]float64`: key is the coin's `api_id`, value is the USD price.
+Passed to `Store.UpdatePrices` to batch-update the `rate` column.
+
 ## Verification
 
 ```bash
 make check              # fmt + lint + test + vuln — must all pass
 make build              # produces ./crypto-tracker binary
-go run ./cmd/crypto-tracker  # fetches bitcoin, displays name + price, q quits
+go run ./cmd/crypto-tracker  # fetches bitcoin, displays name + price
+                             # press r — price refreshes via /simple/price
+                             # press q — quits cleanly
 ```
 
-After this slice, the pipeline is proven: API → Store → UI. Slice 3 scales
-to 100 coins and adds the scrollable table.
+After this slice, the full pipeline is proven end-to-end: initial load
+(API → Store → UI) and refresh (key → API → Store → UI). Slice 3 scales
+to 100 coins and adds the scrollable table. Slice 4 adds the auto-refresh
+ticker but the manual `r` refresh already works.
