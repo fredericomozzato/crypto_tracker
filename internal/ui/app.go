@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -302,11 +303,12 @@ func (m AppModel) tableHeight() int {
 
 // truncate returns s truncated to maxLen characters with an ellipsis.
 func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	if utf8.RuneCountInString(s) <= maxLen {
 		return s
 	}
 	if maxLen <= 1 {
 		return "…"
 	}
-	return s[:maxLen-1] + "…"
+	runes := []rune(s)
+	return string(runes[:maxLen-1]) + "…"
 }
