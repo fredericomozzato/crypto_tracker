@@ -293,9 +293,9 @@ func (m AppModel) renderStatusBar() string {
 	leftContent := "j/k navigate • g/G top/bottom • r refresh • q quit"
 	rightContent := m.statusRight()
 
-	grayStyle   := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
-	errStyle    := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF4444"))
-	greenStyle  := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
+	grayStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
+	errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF4444"))
+	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
 	yellowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
 
 	var rightStyled string
