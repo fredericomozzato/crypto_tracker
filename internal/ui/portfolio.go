@@ -157,7 +157,7 @@ func (m PortfolioModel) View() string {
 
 	// Build right panel (placeholder)
 	rightWidth := m.width - leftWidth - 1 // -1 for separator
-	rightContent := m.renderRightPanel(contentHeight)
+	rightContent := m.renderRightPanel()
 
 	// Combine panels
 	leftStyle := lipgloss.NewStyle().Width(leftWidth).Height(contentHeight)
@@ -201,7 +201,7 @@ func (m PortfolioModel) renderLeftPanel(height int) string {
 	return b.String()
 }
 
-func (m PortfolioModel) renderRightPanel(height int) string {
+func (m PortfolioModel) renderRightPanel() string {
 	if len(m.portfolios) == 0 {
 		return ""
 	}
@@ -240,13 +240,55 @@ func (m PortfolioModel) renderDialogOverlay(background string) string {
 		Padding(1).
 		Render(content)
 
-	// Center the dialog over the background
-	return lipgloss.Place(m.width, m.height,
-		lipgloss.Center, lipgloss.Center,
-		dialog,
-		lipgloss.WithWhitespaceChars(" "),
-		lipgloss.WithWhitespaceBackground(lipgloss.Color("#000000")),
-	)
+	// Overlay the dialog on top of the background panels.
+	// lipgloss v1.1.0 does not have a built-in overlay function,
+	// so we implement a simple overlay by positioning the dialog
+	// within the background content.
+	return overlayDialog(background, dialog, m.width, m.height, dialogWidth, dialogHeight)
+}
+
+// overlayDialog overlays dialog content onto background at the center.
+func overlayDialog(background, dialog string, bgWidth, bgHeight, dialogWidth, dialogHeight int) string {
+	bgLines := strings.Split(background, "\n")
+	dialogLines := strings.Split(dialog, "\n")
+
+	// Calculate center position
+	startY := (bgHeight - dialogHeight) / 2
+	startX := (bgWidth - dialogWidth) / 2
+	if startY < 0 {
+		startY = 0
+	}
+	if startX < 0 {
+		startX = 0
+	}
+
+	var result strings.Builder
+	for y, line := range bgLines {
+		if y < startY || y >= startY+len(dialogLines) {
+			// Outside dialog vertical range, use background line
+			result.WriteString(line)
+		} else {
+			// Inside dialog vertical range, overlay dialog line
+			dialogLine := dialogLines[y-startY]
+			if startX < len(line) {
+				// Replace portion of background with dialog line
+				result.WriteString(line[:startX])
+				result.WriteString(dialogLine)
+				// Pad remaining background if dialog line is shorter
+				remaining := len(line) - startX - len(dialogLine)
+				if remaining > 0 {
+					result.WriteString(line[startX+len(dialogLine):])
+				}
+			} else {
+				result.WriteString(line)
+			}
+		}
+		if y < len(bgLines)-1 {
+			result.WriteString("\n")
+		}
+	}
+
+	return result.String()
 }
 
 func (m *PortfolioModel) moveCursor(delta int) {
