@@ -714,3 +714,71 @@ func TestPortfolioInputActiveForAddAmountMode(t *testing.T) {
 		t.Error("expected InputActive() to be true for addAmount mode")
 	}
 }
+
+func TestCoinPickerTypingFilters(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{
+		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
+	})
+	m.width = 100
+	m.height = 30
+	coins := []store.Coin{
+		{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC"},
+		{ApiID: "ethereum", Name: "Ethereum", Ticker: "ETH"},
+		{ApiID: "litecoin", Name: "Litecoin", Ticker: "LTC"},
+	}
+	m, _ = m.update(coinPickerReadyMsg{coins: coins})
+
+	// Type "bit" to filter
+	for _, r := range []rune{'b', 'i', 't'} {
+		m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+
+	if mode, ok := m.mode.(addCoin); ok {
+		if len(mode.filtered) != 1 || mode.filtered[0].Name != "Bitcoin" {
+			t.Errorf("expected only Bitcoin after typing 'bit', got %v", mode.filtered)
+		}
+	} else {
+		t.Fatal("expected to be in addCoin mode")
+	}
+}
+
+func TestCoinPickerCursorClampedAfterFilter(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{
+		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
+	})
+	m.width = 100
+	m.height = 30
+	coins := []store.Coin{
+		{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC"},
+		{ApiID: "ethereum", Name: "Ethereum", Ticker: "ETH"},
+		{ApiID: "litecoin", Name: "Litecoin", Ticker: "LTC"},
+	}
+	m, _ = m.update(coinPickerReadyMsg{coins: coins})
+
+	// Move cursor to position 2 (Litecoin)
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+
+	// Verify cursor is at 2
+	if mode, ok := m.mode.(addCoin); ok {
+		if mode.cursor != 2 {
+			t.Fatalf("expected cursor=2, got %d", mode.cursor)
+		}
+	} else {
+		t.Fatal("expected to be in addCoin mode")
+	}
+
+	// Type "bit" to filter down to 1 result
+	for _, r := range []rune{'b', 'i', 't'} {
+		m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+
+	// Cursor should be clamped to 0 since there's only 1 result
+	if mode, ok := m.mode.(addCoin); ok {
+		if mode.cursor != 0 {
+			t.Errorf("expected cursor to be clamped to 0 after filter, got %d", mode.cursor)
+		}
+	} else {
+		t.Fatal("expected to be in addCoin mode")
+	}
+}
