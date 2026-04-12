@@ -153,19 +153,24 @@ func (m PortfolioModel) View() string {
 
 	// Build left panel
 	leftWidth := 30
-	leftContent := m.renderLeftPanel(contentHeight)
+	leftContent := m.renderLeftPanel(contentHeight - 2) // -2 for border
 
 	// Build right panel (placeholder)
-	rightWidth := m.width - leftWidth - 1 // -1 for separator
+	rightWidth := m.width - leftWidth - 2 // -2 for borders (no space separator)
 	rightContent := m.renderRightPanel()
 
-	// Combine panels
-	leftStyle := lipgloss.NewStyle().Width(leftWidth).Height(contentHeight)
-	rightStyle := lipgloss.NewStyle().Width(rightWidth).Height(contentHeight)
+	// Combine panels with borders (no space separator — borders provide visual separation)
+	leftStyle := lipgloss.NewStyle().
+		Width(leftWidth).
+		Height(contentHeight).
+		Border(lipgloss.NormalBorder())
+	rightStyle := lipgloss.NewStyle().
+		Width(rightWidth).
+		Height(contentHeight).
+		Border(lipgloss.NormalBorder())
 
 	panels := lipgloss.JoinHorizontal(lipgloss.Top,
 		leftStyle.Render(leftContent),
-		" ",
 		rightStyle.Render(rightContent),
 	)
 
@@ -187,16 +192,23 @@ func (m PortfolioModel) renderLeftPanel(height int) string {
 		return "no portfolios — press n to create one"
 	}
 
+	highlight := lipgloss.NewStyle().Reverse(true)
+	leftWidth := 28 // 30 - 2 for border
+
 	var b strings.Builder
 	for i, p := range m.portfolios {
 		if i >= height {
 			break
 		}
-		prefix := "  "
-		if i == m.cursor {
-			prefix = "▶ "
+		line := p.Name
+		// Pad to full width for consistent highlight
+		if len(line) < leftWidth {
+			line += strings.Repeat(" ", leftWidth-len(line))
 		}
-		b.WriteString(prefix + p.Name + "\n")
+		if i == m.cursor {
+			line = highlight.Render(line)
+		}
+		b.WriteString(line + "\n")
 	}
 	return b.String()
 }

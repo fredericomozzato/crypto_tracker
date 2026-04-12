@@ -244,8 +244,17 @@ func TestPortfolioViewShowsCursorIndicator(t *testing.T) {
 	m.cursor = 0
 
 	view := m.View()
-	if !strings.Contains(view, "▶") {
-		t.Error("expected view to contain cursor indicator '▶'")
+	// Selected portfolio name should be present
+	if !strings.Contains(view, "Portfolio A") {
+		t.Error("expected view to contain selected portfolio name")
+	}
+	// Non-selected portfolio should also be present
+	if !strings.Contains(view, "Portfolio B") {
+		t.Error("expected view to contain non-selected portfolio name")
+	}
+	// No longer using ▶ prefix — highlight is via lipgloss.Reverse
+	if strings.Contains(view, "▶") {
+		t.Error("expected no ▶ cursor indicator (using reverse-video highlight instead)")
 	}
 }
 
