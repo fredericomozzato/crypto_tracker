@@ -24,7 +24,10 @@ digraph fix {
     "None?" -> "Sort by severity" [label="no"];
     "Sort by severity" -> "Create todo per finding";
     "Create todo per finding" -> "Take next finding";
-    "Take next finding" -> "Implement fix";
+    "Take next finding" -> "Behavioral bug?";
+    "Behavioral bug?" -> "Write failing test first" [label="yes"];
+    "Behavioral bug?" -> "Implement fix" [label="no (style/lint)"];
+    "Write failing test first" -> "Implement fix";
     "Implement fix" -> "run make check";
     "run make check" -> "Green?" [label="result"];
     "Green?" -> "Mark FIXED in review doc" [label="yes"];
@@ -87,14 +90,31 @@ Repeat for each finding in order:
 Read the detail paragraph and every file it references. Understand the exact change
 required before touching any code.
 
-#### b. Implement the fix
+#### b. Capture the bug in a test first (implementation-level bugs only)
+
+When the finding describes a **behavioral or functional bug** (wrong output, incorrect state,
+missing validation, logic error) — not a style, structure, or documentation issue — write a
+failing test that reproduces the wrong behavior **before** touching the implementation.
+
+This ensures:
+- The bug is documented as executable specification
+- The fix provably resolves the exact defect
+- The test stays in the suite as a regression guard
+
+The test must **fail on the current code** before you proceed. If you cannot make it fail,
+the finding's root cause is not yet understood — re-read the detail paragraph.
+
+Skip this sub-step only for findings that have no behavioral component (e.g. pure lint
+warnings, naming conventions, missing comments).
+
+#### c. Implement the fix
 
 Make the minimal change that resolves the finding. Do **not**:
 - Refactor surrounding code
 - Fix other unrelated issues (even obvious ones — log them separately)
 - Add features or cleanups beyond the finding's scope
 
-#### c. Run `make check`
+#### d. Run `make check`
 
 ```bash
 make check
@@ -112,7 +132,7 @@ Fix the issue manually, then run /fix again to continue.
 
 Do not attempt the remaining findings.
 
-#### d. Mark the finding FIXED in the review document
+#### e. Mark the finding FIXED in the review document
 
 Update the finding's table row — change `OPEN` to `FIXED`:
 
@@ -126,14 +146,14 @@ Update the finding's table row — change `OPEN` to `FIXED`:
 
 Do not change any other part of the document.
 
-#### e. If this is the last OPEN finding, update the revision status
+#### f. If this is the last OPEN finding, update the revision status
 
 Update `status` in the revision file's frontmatter:
 ```yaml
 status: done
 ```
 
-#### f. Commit
+#### g. Commit
 
 Stage only the modified source files and the revision file. Use this commit message
 format:
