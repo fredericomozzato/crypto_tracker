@@ -1,6 +1,6 @@
 ---
 branch: feat/005-tab-bar-empty-portfolio-tab
-status: in_progress
+status: done
 revision: 1
 ---
 
@@ -29,8 +29,8 @@ No gaps found.
 
 | ID | Sev | Status | Summary |
 |----|-----|--------|---------|
-| I1 | LOW | OPEN | `MarketsModel.View()` checks terminal size — plan said not to |
-| I2 | LOW | OPEN | Duplicate context.Background() vars in test package |
+| I1 | LOW | FIXED | `MarketsModel.View()` checks terminal size — plan said not to |
+| I2 | LOW | FIXED | Duplicate context.Background() vars in test package |
 
 **I1** `internal/ui/markets.go:201–203`  
 `MarketsModel.View()` returns the "Terminal too small" message when dimensions are below

@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -11,12 +10,10 @@ import (
 	"github.com/fredericomozzato/crypto_tracker/internal/store"
 )
 
-var marketsTestCtx = context.Background()
-
 func TestMarketsInitReturnsBatchedCmd(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	cmd := m.Init()
 
 	if cmd == nil {
@@ -27,7 +24,7 @@ func TestMarketsInitReturnsBatchedCmd(t *testing.T) {
 func TestMarketsCoinsLoadedMsg(t *testing.T) {
 	s := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, s, api)
+	m := NewMarketsModel(testCtx, s, api)
 	m.width = 100
 	m.height = 30
 
@@ -79,7 +76,7 @@ func TestMarketsCoinsLoadedMsg(t *testing.T) {
 func TestMarketsErrMsg(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 
@@ -100,7 +97,7 @@ func TestMarketsErrMsg(t *testing.T) {
 func TestMarketsViewRendersLoading(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 
@@ -116,7 +113,7 @@ func TestMarketsViewRendersLoading(t *testing.T) {
 
 func TestMarketsViewRendersColumnHeaders(t *testing.T) {
 	coins := threeCoins()
-	m := NewMarketsModel(marketsTestCtx, &StubStore{coins: coins}, &StubAPI{})
+	m := NewMarketsModel(testCtx, &StubStore{coins: coins}, &StubAPI{})
 	m.width = 120
 	m.height = 40
 	updated, _ := m.update(coinsLoadedMsg{coins: coins})
@@ -131,7 +128,7 @@ func TestMarketsViewRendersColumnHeaders(t *testing.T) {
 
 func TestMarketsViewRendersHintLine(t *testing.T) {
 	coins := threeCoins()
-	m := NewMarketsModel(marketsTestCtx, &StubStore{coins: coins}, &StubAPI{})
+	m := NewMarketsModel(testCtx, &StubStore{coins: coins}, &StubAPI{})
 	m.width = 120
 	m.height = 40
 	updated, _ := m.update(coinsLoadedMsg{coins: coins})
@@ -145,7 +142,7 @@ func TestMarketsViewRendersHintLine(t *testing.T) {
 func TestMarketsRefreshKeyReturnsCmdWhenCoinsLoaded(t *testing.T) {
 	storeStub := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
 	api := &StubAPI{prices: map[string]float64{"bitcoin": 68000.00}}
-	m := NewMarketsModel(marketsTestCtx, storeStub, api)
+	m := NewMarketsModel(testCtx, storeStub, api)
 	m.width = 100
 	m.height = 30
 
@@ -167,7 +164,7 @@ func TestMarketsRefreshKeyReturnsCmdWhenCoinsLoaded(t *testing.T) {
 func TestMarketsRefreshKeyIgnoredWhenAlreadyRefreshing(t *testing.T) {
 	stub := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 	m.coins = stub.coins
@@ -184,7 +181,7 @@ func TestMarketsRefreshKeyIgnoredWhenAlreadyRefreshing(t *testing.T) {
 func TestMarketsRefreshKeyIgnoredWhenNoCoins(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 
@@ -199,7 +196,7 @@ func TestMarketsRefreshKeyIgnoredWhenNoCoins(t *testing.T) {
 func TestMarketsPricesUpdatedMsg(t *testing.T) {
 	storeStub := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 68000.00}}}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, storeStub, api)
+	m := NewMarketsModel(testCtx, storeStub, api)
 	m.width = 100
 	m.height = 30
 	m.coins = []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00}}
@@ -220,7 +217,7 @@ func TestMarketsPricesUpdatedMsg(t *testing.T) {
 func TestMarketsViewShowsRefreshHint(t *testing.T) {
 	stub := &StubStore{coins: []store.Coin{{ApiID: "bitcoin", Name: "Bitcoin", Ticker: "BTC", Rate: 67000.00, MarketRank: 1}}}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 	m.coins = stub.coins
@@ -302,7 +299,7 @@ func TestMarketsCursorMovesUpOnUpArrow(t *testing.T) {
 func TestMarketsMoveCursorNoPanicOnEmptyCoins(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 
@@ -320,7 +317,7 @@ func TestMarketsMoveCursorNoPanicOnEmptyCoins(t *testing.T) {
 func TestMarketsCursorClampedAfterCoinsLoaded(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 
@@ -334,7 +331,7 @@ func TestMarketsCursorClampedAfterCoinsLoaded(t *testing.T) {
 func TestMarketsTickMsgAlwaysReissuesTicker(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 
 	updated, cmd := m.update(tickMsg(time.Now()))
 
@@ -347,7 +344,7 @@ func TestMarketsTickMsgAlwaysReissuesTicker(t *testing.T) {
 func TestMarketsTickMsgBelow60sDoesNotRefresh(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.coins = threeCoins()
 	m.lastRefreshed = time.Now().Add(-30 * time.Second)
 
@@ -361,7 +358,7 @@ func TestMarketsTickMsgBelow60sDoesNotRefresh(t *testing.T) {
 func TestMarketsTickMsgAbove60sFiresRefresh(t *testing.T) {
 	stub := &StubStore{coins: threeCoins()}
 	api := &StubAPI{prices: map[string]float64{"coin-1": 100.0}}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.coins = threeCoins()
 	m.lastRefreshed = time.Now().Add(-61 * time.Second)
 	m.refreshing = false
@@ -379,7 +376,7 @@ func TestMarketsTickMsgAbove60sFiresRefresh(t *testing.T) {
 func TestMarketsTickMsgWhenAlreadyRefreshing(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.coins = threeCoins()
 	m.lastRefreshed = time.Now().Add(-61 * time.Second)
 	m.refreshing = true
@@ -397,7 +394,7 @@ func TestMarketsTickMsgWhenAlreadyRefreshing(t *testing.T) {
 func TestMarketsTickMsgWhenNoCoins(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.lastRefreshed = time.Now().Add(-61 * time.Second)
 
 	updated, _ := m.update(tickMsg(time.Now()))
@@ -410,7 +407,7 @@ func TestMarketsTickMsgWhenNoCoins(t *testing.T) {
 func TestMarketsCoinsLoadedSetsLastRefreshed(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 
@@ -428,7 +425,7 @@ func TestMarketsCoinsLoadedSetsLastRefreshed(t *testing.T) {
 func TestMarketsPricesUpdatedSetsLastRefreshed(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 	m.coins = threeCoins()
@@ -447,7 +444,7 @@ func TestMarketsPricesUpdatedSetsLastRefreshed(t *testing.T) {
 func TestMarketsStatusBarShowsLoading(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 
@@ -460,7 +457,7 @@ func TestMarketsStatusBarShowsLoading(t *testing.T) {
 func TestMarketsStatusBarShowsRefreshing(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 	m.coins = threeCoins()
@@ -476,7 +473,7 @@ func TestMarketsStatusBarShowsRefreshing(t *testing.T) {
 func TestMarketsStatusBarShowsError(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 	m.coins = threeCoins()
@@ -492,7 +489,7 @@ func TestMarketsStatusBarShowsError(t *testing.T) {
 func TestMarketsStatusBarShowsSynced(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 	m.coins = threeCoins()
@@ -507,7 +504,7 @@ func TestMarketsStatusBarShowsSynced(t *testing.T) {
 func TestMarketsStatusBarShowsStale(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 	m.coins = threeCoins()
@@ -522,7 +519,7 @@ func TestMarketsStatusBarShowsStale(t *testing.T) {
 func TestMarketsTableRendersWhileError(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 	m.coins = threeCoins()
@@ -541,7 +538,7 @@ func TestMarketsTableRendersWhileError(t *testing.T) {
 func TestMarketsStatusBarHasHintsOnLeft(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	m.width = 100
 	m.height = 30
 	m.coins = threeCoins()
@@ -557,7 +554,7 @@ func TestMarketsInitFetchesHundredCoinsOnFirstLaunch(t *testing.T) {
 	coins := threeCoins()
 	api := &StubAPI{coins: coins}
 	s := &StubStore{}
-	m := NewMarketsModel(marketsTestCtx, s, api)
+	m := NewMarketsModel(testCtx, s, api)
 
 	msg := executeInitBatchForMarkets(t, m)
 
@@ -577,7 +574,7 @@ func TestMarketsInitLoadsFromDBOnSubsequentLaunch(t *testing.T) {
 	coins := makeCoins(100)
 	api := &StubAPI{coins: coins}
 	s := &StubStore{coins: coins}
-	m := NewMarketsModel(marketsTestCtx, s, api)
+	m := NewMarketsModel(testCtx, s, api)
 
 	msg := executeInitBatchForMarkets(t, m)
 
@@ -598,7 +595,7 @@ func TestMarketsInitRefetchesWhenDBPartiallySeeded(t *testing.T) {
 	full := makeCoins(100)
 	api := &StubAPI{coins: full}
 	s := &StubStore{coins: partial}
-	m := NewMarketsModel(marketsTestCtx, s, api)
+	m := NewMarketsModel(testCtx, s, api)
 
 	msg := executeInitBatchForMarkets(t, m)
 
@@ -617,7 +614,7 @@ func TestMarketsInitRefetchesWhenDBPartiallySeeded(t *testing.T) {
 func TestMarketsIgnoresOtherKeys(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	otherKeys := []rune{'a', 'b', 'c', 'x', 'z', '1', '2', ' '}
 	for _, key := range otherKeys {
 		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{key}}
@@ -631,7 +628,7 @@ func TestMarketsIgnoresOtherKeys(t *testing.T) {
 func TestMarketsInputActiveFalse(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
-	m := NewMarketsModel(marketsTestCtx, stub, api)
+	m := NewMarketsModel(testCtx, stub, api)
 	if m.InputActive() {
 		t.Error("expected InputActive() to return false for MarketsModel")
 	}

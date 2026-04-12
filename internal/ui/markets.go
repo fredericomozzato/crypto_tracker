@@ -198,10 +198,6 @@ func (m MarketsModel) InputActive() bool {
 
 // View renders the coin table + status bar. Assumes height set via WindowSizeMsg.
 func (m MarketsModel) View() string {
-	if m.width < 100 || m.height < 30 {
-		return "Terminal too small — resize to at least 100×30"
-	}
-
 	h := m.tableHeight()
 	end := m.offset + h
 	if end > len(m.coins) {
