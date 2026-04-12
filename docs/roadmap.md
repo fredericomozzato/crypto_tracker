@@ -54,7 +54,7 @@ STATUS: DONE
 - **TDD:** tab switching logic, input suppression
 
 ## Slice 6 — Create portfolio + left panel
-STATUS: IN_REVIEW
+STATUS: DONE
 
 - Left panel lists portfolios with `▶` cursor, `j`/`k` to navigate
 - `n` opens create dialog, text input (max 50 chars), `Enter` saves, `Esc` cancels
@@ -62,7 +62,7 @@ STATUS: IN_REVIEW
 - **TDD:** portfolio CRUD in store, dialog state transitions
 
 ## Slice 7 — Add holding: coin picker + amount input
-STATUS: IN_REVIEW
+STATUS: DONE
 
 - `a` opens coin picker dialog (searchable, filterable list of all coins)
 - Select coin → amount input → upsert holding
