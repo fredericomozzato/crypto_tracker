@@ -19,14 +19,13 @@ structured review document and report findings to the user.
 ```dot
 digraph qa {
     "Load context" -> "Find IN_REVIEW slice";
-    "Find IN_REVIEW slice" -> "Create review document";
-    "Create review document" -> "Phase 1: Smoke test + completeness audit";
+    "Find IN_REVIEW slice" -> "Phase 1: Smoke test + completeness audit";
     "Phase 1: Smoke test + completeness audit" -> "Phase 2: Implementation review";
     "Phase 2: Implementation review" -> "Findings?" [label="assess"];
-    "Findings?" -> "Write findings + update status" [label="yes"];
-    "Findings?" -> "Write PASS + update status" [label="no"];
-    "Write findings + update status" -> "Report to user";
-    "Write PASS + update status" -> "Report to user";
+    "Findings?" -> "Create revision file + write findings" [label="yes"];
+    "Findings?" -> "Update roadmap to DONE" [label="no"];
+    "Create revision file + write findings" -> "Report to user";
+    "Update roadmap to DONE" -> "Report to user";
 }
 ```
 
@@ -46,41 +45,7 @@ If no slice is `IN_REVIEW`, stop and tell the user to run `/build` first.
 Note the slice number, name, branch name. Open `docs/issues/NNN-kebab-case-name.md` and
 read the entire file — scope, file plan, implementation order, and verification commands.
 
-### 3. Create the revision file
-
-Each revision is a separate file inside a per-slice directory:
-
-```
-docs/reviews/NNN-kebab-case-name/
-  revision-1.md   ← status: done or passed
-  revision-2.md   ← status: in_progress  (current)
-```
-
-**Determine the next revision number:**
-- If `docs/reviews/NNN-kebab-case-name/` does not exist, create it. Next revision is 1.
-- If it exists, count the `revision-*.md` files inside. Next revision is count + 1.
-
-**Create `docs/reviews/NNN-kebab-case-name/revision-N.md`** with this structure:
-
-```markdown
----
-branch: feat/NNN-kebab-case-name
-revision: N
-status: in_progress
----
-
-# Slice NNN — Name (Revision N)
-
-## Smoke test + completeness audit
-
-## Implementation review
-```
-
-Do not touch any earlier revision files — they are the audit trail.
-
----
-
-### 4. Phase 1 — Smoke test + completeness audit
+### 3. Phase 1 — Smoke test + completeness audit
 
 **Goal:** Verify the slice scope is fully implemented and that tests actually cover the
 specified behaviour. Look for gaps only — do not report style or code quality here.
@@ -127,7 +92,7 @@ commands satisfied.
 
 ---
 
-### 5. Phase 2 — Implementation review
+### 4. Phase 2 — Implementation review
 
 **Goal:** Find bugs, anti-patterns, architecture deviations, and bad practices in the diff.
 
@@ -169,10 +134,35 @@ No findings. Implementation follows architecture conventions and issue plan.
 
 ---
 
-### 6. Write findings
+### 5. Write findings (only if findings exist)
 
-Use the **table index + detail paragraph** format. Keep detail paragraphs minimal — enough
-for the implementation agent to act without ambiguity.
+**If there are no findings from either phase:** skip this step entirely. Do not create
+any file. Proceed to step 6.
+
+**If there are findings:** create the revision file now.
+
+**Determine the next revision number:**
+- If `docs/reviews/NNN-kebab-case-name/` does not exist, create it. Next revision is 1.
+- If it exists, count the `revision-*.md` files inside. Next revision is count + 1.
+
+Create `docs/reviews/NNN-kebab-case-name/revision-N.md`:
+
+```markdown
+---
+branch: feat/NNN-kebab-case-name
+revision: N
+status: in_progress
+---
+
+# Slice NNN — Name (Revision N)
+
+## Smoke test + completeness audit
+
+## Implementation review
+```
+
+Then write findings using the **table index + detail paragraph** format. Keep detail
+paragraphs minimal — enough for the implementation agent to act without ambiguity.
 
 **Severities:** `BLOCKER` · `HIGH` · `MED` · `LOW`  
 **Statuses:** `OPEN` · `FIXED` · `DISCARDED`
@@ -204,20 +194,18 @@ overwritten and `nil` is returned. Callers cannot detect cancellation.
 formatting helpers belong in `internal/format`.
 ```
 
-### 7. Update the revision file
+### 6. Update roadmap and report
 
-Update the `status` field in the current revision file's frontmatter:
-- Findings exist → leave as `in_progress` (fix skill's target)
-- No findings → set to `passed`
+**If findings exist:** do not touch the roadmap. The revision file already has
+`status: in_progress`. Hand off to the user to run `/fix`.
 
-Update the roadmap **only** if there are no open findings:
+**If no findings:** update the roadmap:
 - Change `STATUS: IN_REVIEW` → `STATUS: DONE`
 - Change the issue frontmatter `status: in_review` → `status: done`
 
-If findings exist, **do not touch the roadmap**. The build agent will re-run `/qa` after
-fixes are applied and the review document will be updated.
+No revision file was created — the last `done` revision stands as the final audit record.
 
-### 8. Report to user
+### 7. Report to user
 
 ```
 QA review complete for slice NNN (revision N).
@@ -230,8 +218,8 @@ Open findings (N total):
 • [F1] HIGH — <one-line summary>
 • [I1] HIGH — <one-line summary>
 
-See docs/reviews/NNN-kebab-case-name.md for detail.
-Next step: fix open findings, then run /qa again.
+See docs/reviews/NNN-kebab-case-name/revision-N.md for detail.
+Next step: run /fix to resolve findings, then run /qa again.
 
 <If no findings:>
 All checks passed. Roadmap updated to DONE. Ready to open a PR.
