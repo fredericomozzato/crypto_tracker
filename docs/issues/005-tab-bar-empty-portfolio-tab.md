@@ -1,5 +1,5 @@
 ---
-status: in_progress
+status: done
 branch: feat/005-tab-bar-empty-portfolio-tab
 ---
 
