@@ -71,13 +71,14 @@ STATUS: DONE
 - **TDD:** holding upsert (including update-on-conflict), filter logic, computed values
 
 ## Slice 8 — List mode + edit + delete holding
-STATUS: PENDING
+STATUS: IN_REVIEW
 
 - `Enter` from menu mode enters list mode (right panel focus)
+- Add focus hint in the border changing the color of the selected panel's border
 - `j`/`k`/`g`/`G` in holdings list, `Esc` returns to menu
-- `Enter` on holding → edit dialog (pre-populated amount)
+- `Enter` on holding → edit amount dialog (pre-populated amount)
 - `X` on holding → delete confirmation dialog
-- `PgUp`/`PgDn` / `Ctrl+B`/`Ctrl+F` preview scrolling from menu mode
+- `PgUp`/`PgDn` -> preview scrolling from menu mode
 - **TDD:** edit/delete state machine, cursor clamping after deletion
 
 ## Slice 9 — Terminal size guard + `--debug` logging

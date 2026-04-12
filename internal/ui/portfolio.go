@@ -31,12 +31,26 @@ type (
 		errMsg   string
 		coinMode addCoin // preserved so Esc returns to coin picker with state intact
 	}
+	listing       struct{} // list mode: right panel focus, j/k navigate holdings
+	editingAmount struct {
+		holding  store.HoldingRow
+		input    textinput.Model
+		errMsg   string
+		listMode listing // preserved so Esc returns to list mode with state intact
+	}
+	deleting struct {
+		holding  store.HoldingRow
+		listMode listing // preserved so Esc/cancel returns to list mode with state intact
+	}
 )
 
-func (browsing) isPortfolioMode()  {}
-func (creating) isPortfolioMode()  {}
-func (addCoin) isPortfolioMode()   {}
-func (addAmount) isPortfolioMode() {}
+func (browsing) isPortfolioMode()      {}
+func (creating) isPortfolioMode()      {}
+func (addCoin) isPortfolioMode()       {}
+func (addAmount) isPortfolioMode()     {}
+func (listing) isPortfolioMode()       {}
+func (editingAmount) isPortfolioMode() {}
+func (deleting) isPortfolioMode()      {}
 
 // portfoliosLoadedMsg is sent when portfolios are loaded from the store.
 // focusID is non-zero when the cursor should be positioned on a specific portfolio.
@@ -60,17 +74,24 @@ type holdingsSavedMsg struct {
 	holdings []store.HoldingRow
 }
 
+// holdingDeletedMsg is sent after a holding is successfully deleted.
+type holdingDeletedMsg struct {
+	holdings []store.HoldingRow
+}
+
 // PortfolioModel is the Portfolio tab with two-panel layout.
 type PortfolioModel struct {
-	ctx        context.Context
-	store      store.Store
-	width      int
-	height     int
-	portfolios []store.Portfolio
-	cursor     int
-	holdings   []store.HoldingRow
-	mode       portfolioMode
-	lastErr    string
+	ctx            context.Context
+	store          store.Store
+	width          int
+	height         int
+	portfolios     []store.Portfolio
+	cursor         int
+	holdings       []store.HoldingRow
+	holdingsCursor int // cursor position within holdings list (list mode)
+	scrollOffset   int // vertical scroll offset for holdings list preview
+	mode           portfolioMode
+	lastErr        string
 }
 
 // NewPortfolioModel creates a new PortfolioModel with the given dependencies.
@@ -104,12 +125,14 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 					switch r {
 					case 'j', 'J':
 						m.moveCursor(1)
+						m.scrollOffset = 0 // Reset scroll offset when navigating portfolios
 						if len(m.portfolios) > 0 {
 							return m, m.cmdLoadHoldings(m.portfolios[m.cursor].ID)
 						}
 						return m, nil
 					case 'k', 'K':
 						m.moveCursor(-1)
+						m.scrollOffset = 0 // Reset scroll offset when navigating portfolios
 						if len(m.portfolios) > 0 {
 							return m, m.cmdLoadHoldings(m.portfolios[m.cursor].ID)
 						}
@@ -125,15 +148,33 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 				}
 			case tea.KeyDown:
 				m.moveCursor(1)
+				m.scrollOffset = 0 // Reset scroll offset when navigating portfolios
 				if len(m.portfolios) > 0 {
 					return m, m.cmdLoadHoldings(m.portfolios[m.cursor].ID)
 				}
 				return m, nil
 			case tea.KeyUp:
 				m.moveCursor(-1)
+				m.scrollOffset = 0 // Reset scroll offset when navigating portfolios
 				if len(m.portfolios) > 0 {
 					return m, m.cmdLoadHoldings(m.portfolios[m.cursor].ID)
 				}
+				return m, nil
+			case tea.KeyEnter:
+				// Enter list mode if we have holdings
+				if len(m.holdings) > 0 {
+					m.mode = listing{}
+					m.holdingsCursor = 0
+					m.scrollOffset = 0
+				}
+				return m, nil
+			case tea.KeyPgDown:
+				m.scrollOffset += m.visibleHoldingsRows() / 2
+				m.clampScrollOffset()
+				return m, nil
+			case tea.KeyPgUp:
+				m.scrollOffset -= m.visibleHoldingsRows() / 2
+				m.clampScrollOffset()
 				return m, nil
 			}
 
@@ -247,6 +288,107 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 				m.mode = mode
 				return m, cmd
 			}
+
+		case listing:
+			switch msg.Type {
+			case tea.KeyRunes:
+				for _, r := range msg.Runes {
+					switch r {
+					case 'j', 'J':
+						m.holdingsCursor++
+						m.clampHoldingsCursor()
+						m.adjustHoldingsViewport()
+						return m, nil
+					case 'k', 'K':
+						m.holdingsCursor--
+						m.clampHoldingsCursor()
+						m.adjustHoldingsViewport()
+						return m, nil
+					case 'g':
+						m.holdingsCursor = 0
+						m.adjustHoldingsViewport()
+						return m, nil
+					case 'G':
+						if len(m.holdings) > 0 {
+							m.holdingsCursor = len(m.holdings) - 1
+						}
+						m.adjustHoldingsViewport()
+						return m, nil
+					case 'a', 'A':
+						// Open coin picker from list mode
+						return m, m.cmdOpenCoinPickerFromList(mode)
+					case 'X', 'x':
+						// Open delete confirmation for current holding
+						if len(m.holdings) > 0 && m.holdingsCursor < len(m.holdings) {
+							m.mode = deleting{
+								holding:  m.holdings[m.holdingsCursor],
+								listMode: mode,
+							}
+						}
+						return m, nil
+					}
+				}
+			case tea.KeyDown:
+				m.holdingsCursor++
+				m.clampHoldingsCursor()
+				m.adjustHoldingsViewport()
+				return m, nil
+			case tea.KeyUp:
+				m.holdingsCursor--
+				m.clampHoldingsCursor()
+				m.adjustHoldingsViewport()
+				return m, nil
+			case tea.KeyEnter:
+				// Open edit dialog for current holding
+				if len(m.holdings) > 0 && m.holdingsCursor < len(m.holdings) {
+					return m.openEditAmountDialog(m.holdings[m.holdingsCursor], mode)
+				}
+				return m, nil
+			case tea.KeyEsc:
+				m.mode = browsing{}
+				m.holdingsCursor = 0
+				m.scrollOffset = 0
+				return m, nil
+			}
+
+		case editingAmount:
+			switch msg.Type {
+			case tea.KeyEsc:
+				m.mode = mode.listMode
+				return m, nil
+			case tea.KeyEnter:
+				input := strings.TrimSpace(mode.input.Value())
+				amount, err := strconv.ParseFloat(input, 64)
+				if err != nil || amount <= 0 {
+					mode.errMsg = "enter a positive number"
+					m.mode = mode
+					return m, nil
+				}
+				if len(m.portfolios) > 0 {
+					return m, m.cmdUpdateHoldingAmount(m.portfolios[m.cursor].ID, mode.holding.CoinID, amount, mode.listMode)
+				}
+				return m, nil
+			default:
+				// Delegate to amount input
+				newInput, cmd := mode.input.Update(msg)
+				mode.input = newInput
+				m.mode = mode
+				return m, cmd
+			}
+
+		case deleting:
+			switch msg.Type {
+			case tea.KeyEsc:
+				m.mode = mode.listMode
+				return m, nil
+			case tea.KeyEnter:
+				// Delete the holding
+				if len(m.portfolios) > 0 {
+					return m, m.cmdDeleteHolding(m.portfolios[m.cursor].ID, mode.holding.ID, mode.listMode)
+				}
+				return m, nil
+			}
+			// All other keys ignored in deleting mode
 		}
 
 	case portfoliosLoadedMsg:
@@ -317,7 +459,27 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 
 	case holdingsSavedMsg:
 		m.holdings = msg.holdings
-		m.mode = browsing{}
+		// If we were in editingAmount mode, return to listing instead of browsing
+		if _, wasEditing := m.mode.(editingAmount); wasEditing {
+			m.mode = listing{}
+			m.clampHoldingsCursor()
+		} else {
+			m.mode = browsing{}
+		}
+		return m, nil
+
+	case holdingDeletedMsg:
+		m.holdings = msg.holdings
+		// Clamp cursor if needed
+		m.clampHoldingsCursor()
+		// Return to listing mode, or browsing if holdings are now empty
+		if len(m.holdings) == 0 {
+			m.mode = browsing{}
+			m.holdingsCursor = 0
+			m.scrollOffset = 0
+		} else {
+			m.mode = listing{}
+		}
 		return m, nil
 
 	case errMsg:
@@ -331,7 +493,7 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 // InputActive returns true when a text input is focused.
 func (m PortfolioModel) InputActive() bool {
 	switch m.mode.(type) {
-	case creating, addCoin, addAmount:
+	case creating, addCoin, addAmount, editingAmount:
 		return true
 	}
 	return false
@@ -362,6 +524,16 @@ func (m PortfolioModel) View() string {
 		dialog := m.renderAddAmountDialog(mode)
 		content := lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, dialog)
 		return content + "\n" + m.renderStatusBar()
+
+	case editingAmount:
+		dialog := m.renderEditAmountDialog(mode)
+		content := lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, dialog)
+		return content + "\n" + m.renderStatusBar()
+
+	case deleting:
+		dialog := m.renderDeleteDialog(mode)
+		content := lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, dialog)
+		return content + "\n" + m.renderStatusBar()
 	}
 
 	contentHeight := m.height - 3 // Reserve 1 row for status bar, 2 for borders
@@ -378,15 +550,41 @@ func (m PortfolioModel) View() string {
 	// Build right panel
 	rightContent := m.renderRightPanel(contentHeight, rightPanelInner)
 
+	// Determine which panel is focused based on mode
+	leftFocused := false
+	rightFocused := false
+	switch m.mode.(type) {
+	case browsing, creating, addCoin, addAmount:
+		leftFocused = true
+	case listing, editingAmount, deleting:
+		// When in dialog modes from list mode, right panel stays focused
+		rightFocused = true
+	}
+
 	// Combine panels with borders (no space separator — borders provide visual separation)
+	// Focused panel gets accent border color, unfocused gets dim border color
+	accentColor := lipgloss.Color("#00FFFF") // cyan accent
+	dimColor := lipgloss.Color("#555555")    // dim gray
+
+	leftBorderColor := dimColor
+	if leftFocused {
+		leftBorderColor = accentColor
+	}
+	rightBorderColor := dimColor
+	if rightFocused {
+		rightBorderColor = accentColor
+	}
+
 	leftStyle := lipgloss.NewStyle().
 		Width(leftPanelInner).
 		Height(contentHeight).
-		Border(lipgloss.NormalBorder())
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(leftBorderColor)
 	rightStyle := lipgloss.NewStyle().
 		Width(rightPanelInner).
 		Height(contentHeight).
-		Border(lipgloss.NormalBorder())
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(rightBorderColor)
 
 	panels := lipgloss.JoinHorizontal(lipgloss.Top,
 		leftStyle.Render(leftContent),
@@ -494,10 +692,40 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 	_, _ = fmt.Fprintf(&b, "%-15s %8s %10s %12s %12s %8s %6s\n", "Coin", "Ticker", "Amount", "Price", "Value", "24h", "%")
 	b.WriteString(strings.Repeat("-", intMin(width, 80)) + "\n")
 
+	// Determine which rows to show based on mode and scroll offset
+	startIdx := 0
+	endIdx := len(m.holdings)
+	visibleRows := height - 3 // Account for title, header, separator
+
+	_, isListing := m.mode.(listing)
+	_, isEditing := m.mode.(editingAmount)
+	_, isDeleting := m.mode.(deleting)
+	inListMode := isListing || isEditing || isDeleting
+
+	if inListMode && visibleRows > 0 {
+		// In list mode, use holdingsCursor and scrollOffset
+		startIdx = m.scrollOffset
+		endIdx = intMin(startIdx+visibleRows, len(m.holdings))
+	} else if visibleRows > 0 {
+		// In browsing mode, use scrollOffset for preview scrolling
+		startIdx = m.scrollOffset
+		endIdx = intMin(startIdx+visibleRows, len(m.holdings))
+	}
+
+	// Ensure indices are valid
+	if startIdx < 0 {
+		startIdx = 0
+	}
+	if endIdx > len(m.holdings) {
+		endIdx = len(m.holdings)
+	}
+
 	// Rows
-	for _, h := range m.holdings {
+	highlight := lipgloss.NewStyle().Reverse(true)
+	for i := startIdx; i < endIdx; i++ {
+		h := m.holdings[i]
 		changeStr := format.FmtChange(h.PriceChange)
-		_, _ = fmt.Fprintf(&b, "%-15s %8s %10.4f %12s %12s %8s %5.1f%%\n",
+		line := fmt.Sprintf("%-15s %8s %10.4f %12s %12s %8s %5.1f%%",
 			truncate(h.Name, 15),
 			h.Ticker,
 			h.Amount,
@@ -506,6 +734,11 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 			changeStr,
 			h.Proportion,
 		)
+		// Highlight current row in list mode
+		if inListMode && i == m.holdingsCursor {
+			line = highlight.Render(line)
+		}
+		b.WriteString(line + "\n")
 	}
 
 	return b.String()
@@ -515,13 +748,19 @@ func (m PortfolioModel) renderStatusBar() string {
 	var content string
 	switch m.mode.(type) {
 	case browsing:
-		content = "j/k portfolios • a add holding • n new portfolio • q quit"
+		content = "j/k portfolios • Enter list • PgUp/PgDn scroll • a add • n new • q quit"
 	case creating:
 		content = "Enter to create • Esc to cancel"
 	case addCoin:
 		content = "j/k navigate • type to filter • Enter select • Esc cancel"
 	case addAmount:
 		content = "Enter to confirm • Esc back to coin selection"
+	case listing:
+		content = "j/k holdings • Enter edit • X delete • a add • Esc menu"
+	case editingAmount:
+		content = "Enter to save • Esc cancel"
+	case deleting:
+		content = "Enter to confirm delete • Esc cancel"
 	}
 
 	if m.lastErr != "" {
@@ -660,4 +899,143 @@ func intMax(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// visibleHoldingsRows returns how many holdings rows can be displayed.
+func (m PortfolioModel) visibleHoldingsRows() int {
+	// Account for: header (1) + separator (1) + title (1) + border (2)
+	contentHeight := m.height - 5
+	if contentHeight < 0 {
+		return 0
+	}
+	return contentHeight
+}
+
+// clampScrollOffset ensures scrollOffset stays within valid bounds.
+func (m *PortfolioModel) clampScrollOffset() {
+	if m.scrollOffset < 0 {
+		m.scrollOffset = 0
+	}
+	maxOffset := len(m.holdings) - m.visibleHoldingsRows()
+	if maxOffset < 0 {
+		maxOffset = 0
+	}
+	if m.scrollOffset > maxOffset {
+		m.scrollOffset = maxOffset
+	}
+}
+
+// clampHoldingsCursor ensures holdingsCursor stays within valid bounds.
+func (m *PortfolioModel) clampHoldingsCursor() {
+	if m.holdingsCursor < 0 {
+		m.holdingsCursor = 0
+	}
+	if len(m.holdings) == 0 {
+		m.holdingsCursor = 0
+	} else if m.holdingsCursor >= len(m.holdings) {
+		m.holdingsCursor = len(m.holdings) - 1
+	}
+}
+
+// adjustHoldingsViewport ensures holdingsCursor stays visible.
+func (m *PortfolioModel) adjustHoldingsViewport() {
+	visibleRows := m.visibleHoldingsRows()
+	if visibleRows <= 0 {
+		return
+	}
+	// If cursor is above the visible area, scroll up
+	if m.holdingsCursor < m.scrollOffset {
+		m.scrollOffset = m.holdingsCursor
+	}
+	// If cursor is below the visible area, scroll down
+	if m.holdingsCursor >= m.scrollOffset+visibleRows {
+		m.scrollOffset = m.holdingsCursor - visibleRows + 1
+	}
+	m.clampScrollOffset()
+}
+
+// cmdOpenCoinPickerFromList loads all coins from the store, preserving list mode for return.
+func (m PortfolioModel) cmdOpenCoinPickerFromList(listMode listing) tea.Cmd {
+	return func() tea.Msg {
+		coins, err := m.store.GetAllCoins(m.ctx)
+		if err != nil {
+			return errMsg{err: fmt.Errorf("loading coins for picker: %w", err)}
+		}
+		return coinPickerReadyMsg{coins: coins}
+	}
+}
+
+// openEditAmountDialog opens the edit amount dialog for a holding.
+func (m PortfolioModel) openEditAmountDialog(holding store.HoldingRow, listMode listing) (PortfolioModel, tea.Cmd) {
+	ti := textinput.New()
+	ti.Placeholder = "e.g. 0.5"
+	ti.CharLimit = 20
+	ti.Focus()
+	// Pre-populate with current amount (4 decimal places)
+	ti.SetValue(fmt.Sprintf("%.4f", holding.Amount))
+	m.mode = editingAmount{
+		holding:  holding,
+		input:    ti,
+		listMode: listMode,
+	}
+	return m, nil
+}
+
+// cmdUpdateHoldingAmount updates a holding's amount and reloads holdings, preserving list mode.
+func (m PortfolioModel) cmdUpdateHoldingAmount(portfolioID, coinID int64, amount float64, listMode listing) tea.Cmd {
+	return func() tea.Msg {
+		if err := m.store.UpsertHolding(m.ctx, portfolioID, coinID, amount); err != nil {
+			return errMsg{err: fmt.Errorf("updating holding amount: %w", err)}
+		}
+		holdings, err := m.store.GetHoldingsForPortfolio(m.ctx, portfolioID)
+		if err != nil {
+			return errMsg{err: fmt.Errorf("loading holdings after update: %w", err)}
+		}
+		return holdingsSavedMsg{holdings: holdings}
+	}
+}
+
+// cmdDeleteHolding deletes a holding and reloads holdings, preserving list mode.
+func (m PortfolioModel) cmdDeleteHolding(portfolioID, holdingID int64, listMode listing) tea.Cmd {
+	return func() tea.Msg {
+		if err := m.store.DeleteHolding(m.ctx, holdingID); err != nil {
+			return errMsg{err: fmt.Errorf("deleting holding: %w", err)}
+		}
+		holdings, err := m.store.GetHoldingsForPortfolio(m.ctx, portfolioID)
+		if err != nil {
+			return errMsg{err: fmt.Errorf("loading holdings after delete: %w", err)}
+		}
+		return holdingDeletedMsg{holdings: holdings}
+	}
+}
+
+// renderEditAmountDialog renders the edit amount dialog.
+func (m PortfolioModel) renderEditAmountDialog(mode editingAmount) string {
+	var b strings.Builder
+	_, _ = fmt.Fprintf(&b, "Edit %s (%s)\n\n", mode.holding.Name, mode.holding.Ticker)
+	_, _ = fmt.Fprintf(&b, "Current: %.4f\n", mode.holding.Amount)
+	b.WriteString("New amount: " + mode.input.View() + "\n")
+	if mode.errMsg != "" {
+		b.WriteString("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render(mode.errMsg))
+	}
+
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Padding(1, 2).
+		Render(b.String())
+}
+
+// renderDeleteDialog renders the delete confirmation dialog.
+func (m PortfolioModel) renderDeleteDialog(mode deleting) string {
+	var b strings.Builder
+	_, _ = fmt.Fprintf(&b, "Delete Holding\n\n")
+	_, _ = fmt.Fprintf(&b, "Coin: %s (%s)\n", mode.holding.Name, mode.holding.Ticker)
+	_, _ = fmt.Fprintf(&b, "Amount: %.4f\n", mode.holding.Amount)
+	_, _ = fmt.Fprintf(&b, "Value: %s\n\n", format.FmtMoney(mode.holding.Value))
+	b.WriteString("Press Enter to confirm deletion, or Esc to cancel.")
+
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Padding(1, 2).
+		Render(b.String())
 }
