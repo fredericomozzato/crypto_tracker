@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fredericomozzato/crypto_tracker/internal/store"
 )
@@ -679,6 +681,670 @@ func TestFilterCoinsNoMatch(t *testing.T) {
 	}
 	if len(result) != 0 {
 		t.Errorf("expected 0 coins, got %d", len(result))
+	}
+}
+
+// Slice 8 tests - List mode, Edit, Delete
+
+func TestEnterFromBrowsingToListingMode(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin", Ticker: "BTC"},
+	}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Should be in listing mode
+	if _, ok := updated.mode.(listing); !ok {
+		t.Errorf("expected listing mode, got %T", updated.mode)
+	}
+	if updated.holdingsCursor != 0 {
+		t.Errorf("expected holdingsCursor=0, got %d", updated.holdingsCursor)
+	}
+}
+
+func TestEnterFromBrowsingNoHoldingsIsNoOp(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Should still be in browsing mode
+	if _, ok := updated.mode.(browsing); !ok {
+		t.Errorf("expected browsing mode, got %T", updated.mode)
+	}
+}
+
+func TestListingJkNavigation(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+		{ID: 2, Name: "Ethereum"},
+		{ID: 3, Name: "Litecoin"},
+	}
+	m.mode = listing{}
+	m.holdingsCursor = 0
+
+	// j twice
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	if m.holdingsCursor != 2 {
+		t.Errorf("expected holdingsCursor=2 after two 'j' presses, got %d", m.holdingsCursor)
+	}
+
+	// k once
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	if m.holdingsCursor != 1 {
+		t.Errorf("expected holdingsCursor=1 after 'k' press, got %d", m.holdingsCursor)
+	}
+}
+
+func TestListingGJumpsToTop(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+		{ID: 2, Name: "Ethereum"},
+		{ID: 3, Name: "Litecoin"},
+	}
+	m.mode = listing{}
+	m.holdingsCursor = 2
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	if updated.holdingsCursor != 0 {
+		t.Errorf("expected holdingsCursor=0 after 'g', got %d", updated.holdingsCursor)
+	}
+}
+
+func TestListingGJumpsToBottom(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+		{ID: 2, Name: "Ethereum"},
+		{ID: 3, Name: "Litecoin"},
+	}
+	m.mode = listing{}
+	m.holdingsCursor = 0
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'G'}})
+	if updated.holdingsCursor != 2 {
+		t.Errorf("expected holdingsCursor=2 after 'G', got %d", updated.holdingsCursor)
+	}
+}
+
+func TestListingClampsAtTop(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+		{ID: 2, Name: "Ethereum"},
+	}
+	m.mode = listing{}
+	m.holdingsCursor = 0
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	if updated.holdingsCursor != 0 {
+		t.Errorf("expected holdingsCursor to stay at 0, got %d", updated.holdingsCursor)
+	}
+}
+
+func TestListingClampsAtBottom(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+		{ID: 2, Name: "Ethereum"},
+	}
+	m.mode = listing{}
+	m.holdingsCursor = 1
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	if updated.holdingsCursor != 1 {
+		t.Errorf("expected holdingsCursor to stay at 1, got %d", updated.holdingsCursor)
+	}
+}
+
+func TestListingEscReturnsToBrowsing(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+	}
+	m.mode = listing{}
+	m.holdingsCursor = 0
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEsc})
+	if _, ok := updated.mode.(browsing); !ok {
+		t.Errorf("expected browsing mode after Esc, got %T", updated.mode)
+	}
+}
+
+func TestListingEnterOpensEditDialog(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin", Ticker: "BTC", Amount: 1.5},
+	}
+	m.mode = listing{}
+	m.holdingsCursor = 0
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+	if _, ok := updated.mode.(editingAmount); !ok {
+		t.Errorf("expected editingAmount mode, got %T", updated.mode)
+	}
+}
+
+func TestListingXOpensDeleteDialog(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin", Ticker: "BTC", Amount: 1.5},
+	}
+	m.mode = listing{}
+	m.holdingsCursor = 0
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'X'}})
+	if _, ok := updated.mode.(deleting); !ok {
+		t.Errorf("expected deleting mode, got %T", updated.mode)
+	}
+}
+
+func TestListingAOpensCoinPicker(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{
+		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
+	})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin", Ticker: "BTC", Amount: 1.5},
+	}
+	m.mode = listing{}
+
+	_, cmd := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	if cmd == nil {
+		t.Error("expected non-nil cmd when pressing 'a' from list mode")
+	}
+}
+
+func TestEditAmountEscReturnsToListing(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.mode = editingAmount{
+		holding:  store.HoldingRow{ID: 1, Name: "Bitcoin"},
+		input:    textinput.New(),
+		listMode: listing{},
+	}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEsc})
+	if _, ok := updated.mode.(listing); !ok {
+		t.Errorf("expected listing mode after Esc, got %T", updated.mode)
+	}
+}
+
+func TestEditAmountEnterWithEmptyNoOp(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.mode = editingAmount{
+		holding:  store.HoldingRow{ID: 1, Name: "Bitcoin"},
+		input:    textinput.New(),
+		listMode: listing{},
+	}
+
+	updated, cmd := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd != nil {
+		t.Error("expected nil cmd for empty input")
+	}
+	if _, ok := updated.mode.(editingAmount); !ok {
+		t.Errorf("expected to stay in editingAmount mode, got %T", updated.mode)
+	}
+}
+
+func TestEditAmountEnterWithNonNumericShowsError(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	ti := textinput.New()
+	m.mode = editingAmount{
+		holding:  store.HoldingRow{ID: 1, Name: "Bitcoin"},
+		input:    ti,
+		listMode: listing{},
+	}
+
+	// Type "abc"
+	for _, r := range []rune{'a', 'b', 'c'} {
+		m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if !updated.InputActive() {
+		t.Error("expected to stay in editingAmount mode with invalid input")
+	}
+	if mode, ok := updated.mode.(editingAmount); ok {
+		if mode.errMsg == "" {
+			t.Error("expected error message for invalid amount")
+		}
+	} else {
+		t.Fatal("expected to be in editingAmount mode")
+	}
+}
+
+func TestEditAmountEnterWithZeroOrNegativeShowsError(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	ti := textinput.New()
+	m.mode = editingAmount{
+		holding:  store.HoldingRow{ID: 1, Name: "Bitcoin"},
+		input:    ti,
+		listMode: listing{},
+	}
+
+	// Type "0"
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'0'}})
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if mode, ok := updated.mode.(editingAmount); ok {
+		if mode.errMsg == "" {
+			t.Error("expected error message for zero amount")
+		}
+	} else {
+		t.Fatal("expected to stay in editingAmount mode")
+	}
+}
+
+func TestEditAmountEnterWithValidAmountReturnsCmd(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{
+		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
+	})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	ti := textinput.New()
+	ti.Focus() // Need to focus the input for it to receive keystrokes
+	m.mode = editingAmount{
+		holding:  store.HoldingRow{ID: 1, Name: "Bitcoin", CoinID: 1},
+		input:    ti,
+		listMode: listing{},
+	}
+
+	// Type "1.5"
+	for _, r := range []rune{'1', '.', '5'} {
+		m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	_, cmd := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd == nil {
+		t.Error("expected non-nil cmd with valid amount")
+	}
+}
+
+func TestEditingAmountInputActive(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.mode = editingAmount{}
+	if !m.InputActive() {
+		t.Error("expected InputActive() to be true for editingAmount mode")
+	}
+}
+
+func TestDeleteConfirmEscReturnsToListing(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.mode = deleting{
+		holding:  store.HoldingRow{ID: 1, Name: "Bitcoin"},
+		listMode: listing{},
+	}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEsc})
+	if _, ok := updated.mode.(listing); !ok {
+		t.Errorf("expected listing mode after Esc, got %T", updated.mode)
+	}
+}
+
+func TestDeleteConfirmEnterReturnsCmd(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{
+		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
+	})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.mode = deleting{
+		holding:  store.HoldingRow{ID: 1, Name: "Bitcoin"},
+		listMode: listing{},
+	}
+
+	_, cmd := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd == nil {
+		t.Error("expected non-nil cmd when confirming delete")
+	}
+}
+
+func TestDeletingInputActive(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.mode = deleting{}
+	if m.InputActive() {
+		t.Error("expected InputActive() to be false for deleting mode")
+	}
+}
+
+func TestDeleteConfirmOtherKeysIgnored(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.mode = deleting{
+		holding:  store.HoldingRow{ID: 1, Name: "Bitcoin"},
+		listMode: listing{},
+	}
+
+	// Press various keys
+	for _, key := range []rune{'j', 'k', 'a', 'x', '1'} {
+		updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{key}})
+		if _, ok := updated.mode.(deleting); !ok {
+			t.Errorf("expected to stay in deleting mode after pressing %c, got %T", key, updated.mode)
+		}
+	}
+}
+
+func TestCursorClampedAfterDelete(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+	}
+	m.mode = listing{}
+	m.holdingsCursor = 0 // at last item
+
+	// Delete the last (and only) holding
+	updated, _ := m.update(holdingDeletedMsg{holdings: []store.HoldingRow{}})
+	if updated.holdingsCursor != 0 {
+		t.Errorf("expected holdingsCursor=0 after delete, got %d", updated.holdingsCursor)
+	}
+}
+
+func TestCursorStaysAtSamePositionAfterDelete(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+		{ID: 2, Name: "Ethereum"},
+		{ID: 3, Name: "Litecoin"},
+	}
+	m.mode = listing{}
+	m.holdingsCursor = 1 // on Ethereum
+
+	// Delete Ethereum
+	updated, _ := m.update(holdingDeletedMsg{holdings: []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+		{ID: 3, Name: "Litecoin"},
+	}})
+	if updated.holdingsCursor != 1 {
+		t.Errorf("expected holdingsCursor=1 after delete, got %d", updated.holdingsCursor)
+	}
+}
+
+func TestHoldingDeletedMsgUpdatesHoldings(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+		{ID: 2, Name: "Ethereum"},
+	}
+
+	updated, _ := m.update(holdingDeletedMsg{holdings: []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+	}})
+	if len(updated.holdings) != 1 {
+		t.Errorf("expected 1 holding after delete, got %d", len(updated.holdings))
+	}
+}
+
+func TestHoldingDeletedMsgClampsCursor(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+		{ID: 2, Name: "Ethereum"},
+	}
+	m.holdingsCursor = 1
+
+	updated, _ := m.update(holdingDeletedMsg{holdings: []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+	}})
+	if updated.holdingsCursor != 0 {
+		t.Errorf("expected holdingsCursor clamped to 0, got %d", updated.holdingsCursor)
+	}
+}
+
+func TestHoldingDeletedMsgReturnsToListing(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+		{ID: 2, Name: "Ethereum"},
+	}
+	m.mode = deleting{}
+
+	updated, _ := m.update(holdingDeletedMsg{holdings: []store.HoldingRow{
+		{ID: 2, Name: "Ethereum"},
+	}})
+	if _, ok := updated.mode.(listing); !ok {
+		t.Errorf("expected listing mode after delete, got %T", updated.mode)
+	}
+}
+
+func TestHoldingDeletedMsgToBrowsingWhenEmpty(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+	}
+	m.mode = deleting{}
+
+	updated, _ := m.update(holdingDeletedMsg{holdings: []store.HoldingRow{}})
+	if _, ok := updated.mode.(browsing); !ok {
+		t.Errorf("expected browsing mode when holdings empty, got %T", updated.mode)
+	}
+}
+
+func TestHoldingsSavedFromEditReturnsToListing(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+	}
+	m.mode = editingAmount{}
+
+	updated, _ := m.update(holdingsSavedMsg{holdings: []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin", Amount: 2.0},
+	}})
+	if _, ok := updated.mode.(listing); !ok {
+		t.Errorf("expected listing mode after edit save, got %T", updated.mode)
+	}
+}
+
+func TestHoldingsSavedFromAddReturnsToBrowsing(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.holdings = []store.HoldingRow{}
+	m.mode = addAmount{}
+
+	updated, _ := m.update(holdingsSavedMsg{holdings: []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+	}})
+	if _, ok := updated.mode.(browsing); !ok {
+		t.Errorf("expected browsing mode after add save, got %T", updated.mode)
+	}
+}
+
+func TestBrowsingPgDnScrollsHoldingsPreview(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	// Create many holdings to allow scrolling
+	for i := 0; i < 50; i++ {
+		m.holdings = append(m.holdings, store.HoldingRow{ID: int64(i), Name: fmt.Sprintf("Coin%d", i)})
+	}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyPgDown})
+	if updated.scrollOffset <= 0 {
+		t.Errorf("expected scrollOffset > 0 after PgDn, got %d", updated.scrollOffset)
+	}
+}
+
+func TestBrowsingPgUpScrollsHoldingsPreview(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	// Create many holdings to allow scrolling
+	for i := 0; i < 50; i++ {
+		m.holdings = append(m.holdings, store.HoldingRow{ID: int64(i), Name: fmt.Sprintf("Coin%d", i)})
+	}
+	m.scrollOffset = 20
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyPgUp})
+	if updated.scrollOffset >= 20 {
+		t.Errorf("expected scrollOffset < 20 after PgUp, got %d", updated.scrollOffset)
+	}
+}
+
+func TestBrowsingPgUpDoesNotGoBelowZero(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+	}
+	m.scrollOffset = 0
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyPgUp})
+	if updated.scrollOffset != 0 {
+		t.Errorf("expected scrollOffset to stay at 0, got %d", updated.scrollOffset)
+	}
+}
+
+func TestBrowsingJkResetsScrollOffset(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Portfolio A"},
+		{ID: 2, Name: "Portfolio B"},
+	}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+	}
+	m.scrollOffset = 10
+
+	// j should reset scroll offset
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	if updated.scrollOffset != 0 {
+		t.Errorf("expected scrollOffset reset to 0 after j, got %d", updated.scrollOffset)
+	}
+}
+
+func TestListingModeShowsPanelFocus(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+	}
+	m.mode = listing{}
+
+	view := m.View()
+	if view == "" {
+		t.Error("expected non-empty view in listing mode")
+	}
+}
+
+func TestBrowsingModeShowsPanelFocus(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.holdings = []store.HoldingRow{
+		{ID: 1, Name: "Bitcoin"},
+	}
+	m.mode = browsing{}
+
+	view := m.View()
+	if view == "" {
+		t.Error("expected non-empty view in browsing mode")
+	}
+}
+
+func TestEditDialogShowsCoinName(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	ti := textinput.New()
+	m.mode = editingAmount{
+		holding: store.HoldingRow{ID: 1, Name: "Bitcoin", Ticker: "BTC", Amount: 1.5},
+		input:   ti,
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "Bitcoin") {
+		t.Error("expected edit dialog to show coin name")
+	}
+	if !strings.Contains(view, "BTC") {
+		t.Error("expected edit dialog to show ticker")
+	}
+}
+
+func TestDeleteDialogShowsCoinName(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
+	m.mode = deleting{
+		holding: store.HoldingRow{ID: 1, Name: "Bitcoin", Ticker: "BTC", Amount: 1.5, Value: 50000},
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "Bitcoin") {
+		t.Error("expected delete dialog to show coin name")
+	}
+	if !strings.Contains(view, "BTC") {
+		t.Error("expected delete dialog to show ticker")
+	}
+	if !strings.Contains(view, "1.5000") && !strings.Contains(view, "1.5") {
+		t.Error("expected delete dialog to show amount")
 	}
 }
 
