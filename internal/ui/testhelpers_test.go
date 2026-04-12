@@ -81,6 +81,29 @@ func (s *StubStore) GetHoldingsForPortfolio(ctx context.Context, portfolioID int
 	return s.holdingRows, nil
 }
 
+func (s *StubStore) RenamePortfolio(ctx context.Context, id int64, name string) error {
+	if s.err != nil {
+		return s.err
+	}
+	for i, p := range s.portfolios {
+		if p.ID == id {
+			s.portfolios[i].Name = name
+			return nil
+		}
+	}
+	return nil
+}
+
+func (s *StubStore) DeletePortfolio(ctx context.Context, id int64) error {
+	for i, p := range s.portfolios {
+		if p.ID == id {
+			s.portfolios = append(s.portfolios[:i], s.portfolios[i+1:]...)
+			return nil
+		}
+	}
+	return nil
+}
+
 // StubAPI implements api.CoinGeckoClient for testing
 type StubAPI struct {
 	coins             []store.Coin

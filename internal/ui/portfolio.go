@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -44,15 +45,25 @@ type (
 		holding  store.HoldingRow
 		listMode listing // preserved so Esc/cancel returns to list mode with state intact
 	}
+	editingPortfolio struct {
+		portfolio store.Portfolio
+		input     textinput.Model
+		errMsg    string
+	}
+	deletingPortfolio struct {
+		portfolio store.Portfolio
+	}
 )
 
-func (browsing) isPortfolioMode()      {}
-func (creating) isPortfolioMode()      {}
-func (addCoin) isPortfolioMode()       {}
-func (addAmount) isPortfolioMode()     {}
-func (listing) isPortfolioMode()       {}
-func (editingAmount) isPortfolioMode() {}
-func (deleting) isPortfolioMode()      {}
+func (browsing) isPortfolioMode()          {}
+func (creating) isPortfolioMode()          {}
+func (addCoin) isPortfolioMode()           {}
+func (addAmount) isPortfolioMode()         {}
+func (listing) isPortfolioMode()           {}
+func (editingAmount) isPortfolioMode()     {}
+func (deleting) isPortfolioMode()          {}
+func (editingPortfolio) isPortfolioMode()  {}
+func (deletingPortfolio) isPortfolioMode() {}
 
 // portfoliosLoadedMsg is sent when portfolios are loaded from the store.
 // focusID is non-zero when the cursor should be positioned on a specific portfolio.
@@ -80,6 +91,11 @@ type holdingsSavedMsg struct {
 // holdingDeletedMsg is sent after a holding is successfully deleted.
 type holdingDeletedMsg struct {
 	holdings []store.HoldingRow
+}
+
+// portfolioDeletedMsg is sent after a portfolio is successfully deleted.
+type portfolioDeletedMsg struct {
+	portfolios []store.Portfolio
 }
 
 // PortfolioModel is the Portfolio tab with two-panel layout.
@@ -142,9 +158,15 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 						return m, nil
 					case 'n', 'N':
 						return m.openCreateDialog(), nil
-					case 'a', 'A':
+					case 'e', 'E':
 						if len(m.portfolios) > 0 {
-							return m, m.cmdOpenCoinPicker()
+							return m.openEditPortfolioDialog(), nil
+						}
+						return m, nil
+					case 'X', 'x':
+						if len(m.portfolios) > 0 {
+							m.mode = deletingPortfolio{portfolio: m.portfolios[m.cursor]}
+							return m, nil
 						}
 						return m, nil
 					}
@@ -164,8 +186,8 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 				}
 				return m, nil
 			case tea.KeyEnter:
-				// Enter list mode if we have holdings
-				if len(m.holdings) > 0 {
+				// Enter list mode if we have a portfolio (even if no holdings)
+				if len(m.portfolios) > 0 {
 					m.mode = listing{}
 					m.holdingsCursor = 0
 					m.scrollOffset = 0
@@ -392,6 +414,42 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 				return m, nil
 			}
 			// All other keys ignored in deleting mode
+
+		case editingPortfolio:
+			switch msg.Type {
+			case tea.KeyEsc:
+				m.mode = browsing{}
+				return m, nil
+			case tea.KeyEnter:
+				name := strings.TrimSpace(mode.input.Value())
+				if name == "" || name == mode.portfolio.Name {
+					m.mode = browsing{}
+					return m, nil
+				}
+				for _, p := range m.portfolios {
+					if p.Name == name && p.ID != mode.portfolio.ID {
+						mode.errMsg = "name already exists"
+						m.mode = mode
+						return m, nil
+					}
+				}
+				return m, m.cmdRenamePortfolio(mode.portfolio.ID, name)
+			default:
+				newInput, cmd := mode.input.Update(msg)
+				mode.input = newInput
+				m.mode = mode
+				return m, cmd
+			}
+
+		case deletingPortfolio:
+			switch msg.Type {
+			case tea.KeyEsc:
+				m.mode = browsing{}
+				return m, nil
+			case tea.KeyEnter:
+				return m, m.cmdDeletePortfolio(mode.portfolio.ID)
+			}
+			// All other keys ignored
 		}
 
 	case portfoliosLoadedMsg:
@@ -496,6 +554,26 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 		}
 		return m, nil
 
+	case portfolioDeletedMsg:
+		m.portfolios = msg.portfolios
+		m.mode = browsing{}
+		m.scrollOffset = 0
+		m.holdingsCursor = 0
+		if len(m.portfolios) == 0 {
+			m.cursor = 0
+			m.holdings = nil
+			m.lastErr = ""
+			return m, nil
+		}
+		if m.cursor >= len(m.portfolios) {
+			m.cursor = len(m.portfolios) - 1
+		}
+		if m.cursor < 0 {
+			m.cursor = 0
+		}
+		m.lastErr = ""
+		return m, m.cmdLoadHoldings(m.portfolios[m.cursor].ID)
+
 	case errMsg:
 		m.lastErr = msg.err.Error()
 		return m, nil
@@ -507,7 +585,7 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 // InputActive returns true when a text input is focused.
 func (m PortfolioModel) InputActive() bool {
 	switch m.mode.(type) {
-	case creating, addCoin, addAmount, editingAmount:
+	case creating, addCoin, addAmount, editingAmount, editingPortfolio:
 		return true
 	}
 	return false
@@ -522,9 +600,13 @@ func (m PortfolioModel) View() string {
 	// Dialog modes: creating, addCoin, addAmount
 	switch mode := m.mode.(type) {
 	case creating:
+		dialogWidth := intMin(intMax(m.width/2, 40), 60)
+		inputWidth := dialogWidth - 6 // Account for padding and border
+		mode.input.Width = inputWidth
 		dialog := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			Padding(1, 2).
+			Width(dialogWidth).
 			Render("New Portfolio\n\n" + mode.input.View())
 		content := lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, dialog)
 		return content + "\n" + m.renderStatusBar()
@@ -548,6 +630,16 @@ func (m PortfolioModel) View() string {
 		dialog := m.renderDeleteDialog(mode)
 		content := lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, dialog)
 		return content + "\n" + m.renderStatusBar()
+
+	case editingPortfolio:
+		dialog := m.renderEditPortfolioDialog(mode)
+		content := lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, dialog)
+		return content + "\n" + m.renderStatusBar()
+
+	case deletingPortfolio:
+		dialog := m.renderDeletePortfolioDialog(mode)
+		content := lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, dialog)
+		return content + "\n" + m.renderStatusBar()
 	}
 
 	contentHeight := m.height - 3 // Reserve 1 row for status bar, 2 for borders
@@ -568,7 +660,7 @@ func (m PortfolioModel) View() string {
 	leftFocused := false
 	rightFocused := false
 	switch m.mode.(type) {
-	case browsing, creating, addCoin, addAmount:
+	case browsing, creating, addCoin, addAmount, editingPortfolio, deletingPortfolio:
 		leftFocused = true
 	case listing, editingAmount, deleting:
 		// When in dialog modes from list mode, right panel stays focused
@@ -762,7 +854,7 @@ func (m PortfolioModel) renderStatusBar() string {
 	var content string
 	switch m.mode.(type) {
 	case browsing:
-		content = "j/k portfolios • Enter list • PgUp/PgDn scroll • a add • n new • q quit"
+		content = "j/k portfolios • Enter list • e edit • X delete • PgUp/PgDn scroll • n new • q quit"
 	case creating:
 		content = "Enter to create • Esc to cancel"
 	case addCoin:
@@ -775,13 +867,34 @@ func (m PortfolioModel) renderStatusBar() string {
 		content = "Enter to save • Esc cancel"
 	case deleting:
 		content = "Enter to confirm delete • Esc cancel"
+	case editingPortfolio:
+		content = "Enter to save • Esc to cancel"
+	case deletingPortfolio:
+		content = "Enter to delete • Esc to cancel"
 	}
 
 	if m.lastErr != "" {
-		content += " • error: " + m.lastErr
+		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
+		content += " • " + errStyle.Render("error: "+m.lastErr)
 	}
 
 	return content
+}
+
+func (m PortfolioModel) openEditPortfolioDialog() PortfolioModel {
+	ti := textinput.New()
+	ti.Placeholder = "e.g. Long Term"
+	ti.CharLimit = 50
+	ti.Focus()
+	ti.SetValue(m.portfolios[m.cursor].Name)
+	// Set width based on dialog width calculation (will be set properly in View)
+	dialogWidth := intMin(intMax(m.width/2, 40), 60)
+	ti.Width = dialogWidth - 6 // Account for padding and border
+	m.mode = editingPortfolio{
+		portfolio: m.portfolios[m.cursor],
+		input:     ti,
+	}
+	return m
 }
 
 func (m *PortfolioModel) moveCursor(delta int) {
@@ -820,6 +933,9 @@ func (m PortfolioModel) cmdCreatePortfolio(name string) tea.Cmd {
 	return func() tea.Msg {
 		p, err := m.store.CreatePortfolio(m.ctx, name)
 		if err != nil {
+			if strings.Contains(err.Error(), "UNIQUE") {
+				return errMsg{err: errors.New("portfolio \"" + name + "\" already exists")}
+			}
 			return errMsg{err: fmt.Errorf("creating portfolio: %w", err)}
 		}
 		portfolios, err := m.store.GetAllPortfolios(m.ctx)
@@ -827,17 +943,6 @@ func (m PortfolioModel) cmdCreatePortfolio(name string) tea.Cmd {
 			return errMsg{err: fmt.Errorf("loading portfolios after create: %w", err)}
 		}
 		return portfoliosLoadedMsg{portfolios: portfolios, focusID: p.ID}
-	}
-}
-
-// cmdOpenCoinPicker loads all coins from the store.
-func (m PortfolioModel) cmdOpenCoinPicker() tea.Cmd {
-	return func() tea.Msg {
-		coins, err := m.store.GetAllCoins(m.ctx)
-		if err != nil {
-			return errMsg{err: fmt.Errorf("loading coins for picker: %w", err)}
-		}
-		return coinPickerReadyMsg{coins: coins, origin: browsing{}}
 	}
 }
 
@@ -1024,6 +1129,34 @@ func (m PortfolioModel) cmdDeleteHolding(portfolioID, holdingID int64, listMode 
 	}
 }
 
+// cmdRenamePortfolio renames a portfolio and reloads portfolios.
+func (m PortfolioModel) cmdRenamePortfolio(portfolioID int64, name string) tea.Cmd {
+	return func() tea.Msg {
+		if err := m.store.RenamePortfolio(m.ctx, portfolioID, name); err != nil {
+			return errMsg{err: fmt.Errorf("renaming portfolio: %w", err)}
+		}
+		portfolios, err := m.store.GetAllPortfolios(m.ctx)
+		if err != nil {
+			return errMsg{err: fmt.Errorf("loading portfolios after rename: %w", err)}
+		}
+		return portfoliosLoadedMsg{portfolios: portfolios, focusID: portfolioID}
+	}
+}
+
+// cmdDeletePortfolio deletes a portfolio and reloads portfolios.
+func (m PortfolioModel) cmdDeletePortfolio(portfolioID int64) tea.Cmd {
+	return func() tea.Msg {
+		if err := m.store.DeletePortfolio(m.ctx, portfolioID); err != nil {
+			return errMsg{err: fmt.Errorf("deleting portfolio: %w", err)}
+		}
+		portfolios, err := m.store.GetAllPortfolios(m.ctx)
+		if err != nil {
+			return errMsg{err: fmt.Errorf("loading portfolios after delete: %w", err)}
+		}
+		return portfolioDeletedMsg{portfolios: portfolios}
+	}
+}
+
 // renderEditAmountDialog renders the edit amount dialog.
 func (m PortfolioModel) renderEditAmountDialog(mode editingAmount) string {
 	var b strings.Builder
@@ -1049,6 +1182,34 @@ func (m PortfolioModel) renderDeleteDialog(mode deleting) string {
 	_, _ = fmt.Fprintf(&b, "Value: %s\n\n", format.FmtMoney(mode.holding.Value))
 	b.WriteString("Press Enter to confirm deletion, or Esc to cancel.")
 
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Padding(1, 2).
+		Render(b.String())
+}
+
+// renderEditPortfolioDialog renders the edit portfolio dialog.
+func (m PortfolioModel) renderEditPortfolioDialog(mode editingPortfolio) string {
+	var b strings.Builder
+	b.WriteString("Rename Portfolio\n\n")
+	b.WriteString(mode.input.View() + "\n")
+	if mode.errMsg != "" {
+		b.WriteString("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render(mode.errMsg))
+	}
+	dialogWidth := intMin(intMax(m.width/2, 40), 60)
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Padding(1, 2).
+		Width(dialogWidth).
+		Render(b.String())
+}
+
+// renderDeletePortfolioDialog renders the delete portfolio confirmation dialog.
+func (m PortfolioModel) renderDeletePortfolioDialog(mode deletingPortfolio) string {
+	var b strings.Builder
+	b.WriteString("Delete Portfolio\n\n")
+	b.WriteString(mode.portfolio.Name + "\n\n")
+	b.WriteString("Press Enter to confirm, or Esc to cancel.")
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		Padding(1, 2).

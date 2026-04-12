@@ -1051,3 +1051,255 @@ func TestDeleteHoldingNonExistentIsNoOp(t *testing.T) {
 		t.Errorf("expected no error deleting non-existent holding, got: %v", err)
 	}
 }
+
+func TestRenamePortfolio(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Create a portfolio
+	p, err := s.CreatePortfolio(ctx, "Old Name")
+	if err != nil {
+		t.Fatalf("failed to create portfolio: %v", err)
+	}
+
+	// Rename it
+	if err := s.RenamePortfolio(ctx, p.ID, "New Name"); err != nil {
+		t.Fatalf("failed to rename portfolio: %v", err)
+	}
+
+	// Verify the rename
+	portfolios, err := s.GetAllPortfolios(ctx)
+	if err != nil {
+		t.Fatalf("failed to get portfolios: %v", err)
+	}
+
+	if len(portfolios) != 1 {
+		t.Fatalf("expected 1 portfolio, got %d", len(portfolios))
+	}
+
+	if portfolios[0].Name != "New Name" {
+		t.Errorf("expected name 'New Name', got %s", portfolios[0].Name)
+	}
+}
+
+func TestRenamePortfolioDuplicateName(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Create two portfolios
+	p1, err := s.CreatePortfolio(ctx, "Portfolio A")
+	if err != nil {
+		t.Fatalf("failed to create first portfolio: %v", err)
+	}
+
+	_, err = s.CreatePortfolio(ctx, "Portfolio B")
+	if err != nil {
+		t.Fatalf("failed to create second portfolio: %v", err)
+	}
+
+	// Try to rename p1 to "Portfolio B" - should fail due to UNIQUE constraint
+	if err := s.RenamePortfolio(ctx, p1.ID, "Portfolio B"); err == nil {
+		t.Error("expected error when renaming to duplicate name, got nil")
+	}
+}
+
+func TestRenamePortfolioNotFound(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Try to rename non-existent portfolio
+	if err := s.RenamePortfolio(ctx, 99999, "New Name"); err == nil {
+		t.Error("expected error when renaming non-existent portfolio, got nil")
+	}
+}
+
+func TestDeletePortfolio(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Create a portfolio
+	p, err := s.CreatePortfolio(ctx, "To Delete")
+	if err != nil {
+		t.Fatalf("failed to create portfolio: %v", err)
+	}
+
+	// Delete it
+	if err := s.DeletePortfolio(ctx, p.ID); err != nil {
+		t.Fatalf("failed to delete portfolio: %v", err)
+	}
+
+	// Verify it's gone
+	portfolios, err := s.GetAllPortfolios(ctx)
+	if err != nil {
+		t.Fatalf("failed to get portfolios: %v", err)
+	}
+
+	if len(portfolios) != 0 {
+		t.Errorf("expected 0 portfolios after delete, got %d", len(portfolios))
+	}
+}
+
+func TestDeletePortfolioCascadeHoldings(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Create a coin
+	coin := Coin{
+		ApiID:  "bitcoin",
+		Name:   "Bitcoin",
+		Ticker: "BTC",
+		Rate:   67000.00,
+	}
+	if err := s.UpsertCoin(ctx, coin); err != nil {
+		t.Fatalf("failed to upsert coin: %v", err)
+	}
+
+	coins, err := s.GetAllCoins(ctx)
+	if err != nil {
+		t.Fatalf("failed to get coins: %v", err)
+	}
+	coinID := coins[0].ID
+
+	// Create a portfolio
+	p, err := s.CreatePortfolio(ctx, "Test Portfolio")
+	if err != nil {
+		t.Fatalf("failed to create portfolio: %v", err)
+	}
+
+	// Add a holding
+	if err := s.UpsertHolding(ctx, p.ID, coinID, 1.5); err != nil {
+		t.Fatalf("failed to upsert holding: %v", err)
+	}
+
+	// Verify holding exists
+	holdings, err := s.GetHoldingsForPortfolio(ctx, p.ID)
+	if err != nil {
+		t.Fatalf("failed to get holdings: %v", err)
+	}
+	if len(holdings) != 1 {
+		t.Fatalf("expected 1 holding, got %d", len(holdings))
+	}
+
+	// Delete the portfolio
+	if err := s.DeletePortfolio(ctx, p.ID); err != nil {
+		t.Fatalf("failed to delete portfolio: %v", err)
+	}
+
+	// Verify holdings are cascade-deleted
+	holdings, err = s.GetHoldingsForPortfolio(ctx, p.ID)
+	if err != nil {
+		t.Fatalf("failed to get holdings after delete: %v", err)
+	}
+	if len(holdings) != 0 {
+		t.Errorf("expected 0 holdings after portfolio delete, got %d", len(holdings))
+	}
+}
+
+func TestDeletePortfolioNotFound(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Delete non-existent portfolio - should not error (idempotent)
+	if err := s.DeletePortfolio(ctx, 99999); err != nil {
+		t.Errorf("expected no error deleting non-existent portfolio, got: %v", err)
+	}
+}
+
+func TestCreatePortfolioDuplicateName(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Create first portfolio
+	if _, err := s.CreatePortfolio(ctx, "Duplicate Name"); err != nil {
+		t.Fatalf("failed to create first portfolio: %v", err)
+	}
+
+	// Try to create second with same name - should fail due to UNIQUE constraint
+	if _, err := s.CreatePortfolio(ctx, "Duplicate Name"); err == nil {
+		t.Error("expected error when creating portfolio with duplicate name, got nil")
+	}
+}

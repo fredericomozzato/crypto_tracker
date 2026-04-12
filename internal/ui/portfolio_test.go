@@ -283,27 +283,30 @@ func TestPortfolioHandlesWindowSizeMsg(t *testing.T) {
 	}
 }
 
-func TestPortfolioAKeyWhenNoPortfoliosIsNoOp(t *testing.T) {
+func TestPortfolioAKeyInBrowsingModeIsNoOp(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{})
 	m.width = 100
 	m.height = 30
 	_, cmd := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	if cmd != nil {
-		t.Error("expected nil cmd when pressing 'a' with no portfolios")
+		t.Error("expected nil cmd when pressing 'a' in browsing mode")
 	}
 }
 
-func TestPortfolioAKeyOpensCoinPicker(t *testing.T) {
+func TestPortfolioAKeyInListModeOpensCoinPicker(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
-		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
+		portfolios:  []store.Portfolio{{ID: 1, Name: "Test"}},
+		holdingRows: []store.HoldingRow{{ID: 1, CoinID: 1, Name: "Bitcoin", Ticker: "BTC"}},
 	})
 	m.width = 100
 	m.height = 30
-	// Load portfolios into model
+	// Load portfolios and holdings into model, then enter list mode
 	m, _ = m.update(portfoliosLoadedMsg{portfolios: []store.Portfolio{{ID: 1, Name: "Test"}}})
+	m, _ = m.update(holdingsLoadedMsg{holdings: []store.HoldingRow{{ID: 1, CoinID: 1, Name: "Bitcoin", Ticker: "BTC"}}})
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyEnter}) // Enter list mode
 	_, cmd := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	if cmd == nil {
-		t.Error("expected non-nil cmd when pressing 'a' with portfolios")
+		t.Error("expected non-nil cmd when pressing 'a' in list mode")
 	}
 }
 
@@ -706,7 +709,7 @@ func TestEnterFromBrowsingToListingMode(t *testing.T) {
 	}
 }
 
-func TestEnterFromBrowsingNoHoldingsIsNoOp(t *testing.T) {
+func TestEnterFromBrowsingNoHoldingsEntersListMode(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{})
 	m.width = 100
 	m.height = 30
@@ -715,9 +718,9 @@ func TestEnterFromBrowsingNoHoldingsIsNoOp(t *testing.T) {
 
 	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
 
-	// Should still be in browsing mode
-	if _, ok := updated.mode.(browsing); !ok {
-		t.Errorf("expected browsing mode, got %T", updated.mode)
+	// Should enter list mode even with no holdings
+	if _, ok := updated.mode.(listing); !ok {
+		t.Errorf("expected listing mode, got %T", updated.mode)
 	}
 }
 
@@ -1387,6 +1390,390 @@ func TestPortfolioInputActiveForAddAmountMode(t *testing.T) {
 	m.mode = addAmount{}
 	if !m.InputActive() {
 		t.Error("expected InputActive() to be true for addAmount mode")
+	}
+}
+
+// Slice 9 tests - Portfolio Edit and Delete
+
+func TestBrowsingEKeyOpensEditDialog(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Test Portfolio"},
+	}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+
+	if _, ok := updated.mode.(editingPortfolio); !ok {
+		t.Errorf("expected editingPortfolio mode, got %T", updated.mode)
+	}
+}
+
+func TestBrowsingEKeyNoPortfoliosIsNoOp(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+
+	if _, ok := updated.mode.(browsing); !ok {
+		t.Errorf("expected browsing mode when no portfolios, got %T", updated.mode)
+	}
+}
+
+func TestEditingPortfolioEscReturnsToBrowsing(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.mode = editingPortfolio{
+		portfolio: store.Portfolio{ID: 1, Name: "Test"},
+		input:     textinput.New(),
+	}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEsc})
+
+	if _, ok := updated.mode.(browsing); !ok {
+		t.Errorf("expected browsing mode after Esc, got %T", updated.mode)
+	}
+}
+
+func TestEditingPortfolioEnterWithEmptyNameReturnsToBrowsing(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	ti := textinput.New()
+	m.mode = editingPortfolio{
+		portfolio: store.Portfolio{ID: 1, Name: "Test"},
+		input:     ti,
+	}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if _, ok := updated.mode.(browsing); !ok {
+		t.Errorf("expected browsing mode after Enter with empty name, got %T", updated.mode)
+	}
+}
+
+func TestEditingPortfolioEnterWithSameNameReturnsToBrowsing(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	ti := textinput.New()
+	ti.SetValue("Test")
+	m.mode = editingPortfolio{
+		portfolio: store.Portfolio{ID: 1, Name: "Test"},
+		input:     ti,
+	}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if _, ok := updated.mode.(browsing); !ok {
+		t.Errorf("expected browsing mode after Enter with same name, got %T", updated.mode)
+	}
+}
+
+func TestEditingPortfolioEnterWithDuplicateNameShowsError(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Portfolio A"},
+		{ID: 2, Name: "Portfolio B"},
+	}
+	ti := textinput.New()
+	ti.SetValue("Portfolio B") // Try to rename Portfolio A to Portfolio B
+	m.mode = editingPortfolio{
+		portfolio: store.Portfolio{ID: 1, Name: "Portfolio A"},
+		input:     ti,
+	}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if mode, ok := updated.mode.(editingPortfolio); ok {
+		if mode.errMsg == "" {
+			t.Error("expected error message for duplicate name")
+		}
+	} else {
+		t.Errorf("expected to stay in editingPortfolio mode, got %T", updated.mode)
+	}
+}
+
+func TestEditingPortfolioEnterWithValidNameReturnsCmd(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{
+		portfolios: []store.Portfolio{
+			{ID: 1, Name: "Old Name"},
+		},
+	})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Old Name"},
+	}
+	ti := textinput.New()
+	ti.Focus()
+	ti.SetValue("New Name")
+	m.mode = editingPortfolio{
+		portfolio: store.Portfolio{ID: 1, Name: "Old Name"},
+		input:     ti,
+	}
+
+	_, cmd := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if cmd == nil {
+		t.Error("expected non-nil cmd with valid name")
+	}
+}
+
+func TestEditingPortfolioInputActive(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.mode = editingPortfolio{}
+
+	if !m.InputActive() {
+		t.Error("expected InputActive() to be true for editingPortfolio mode")
+	}
+}
+
+func TestEditingPortfolioPrePopulatedName(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Current Name"},
+	}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+
+	if mode, ok := updated.mode.(editingPortfolio); ok {
+		if mode.input.Value() != "Current Name" {
+			t.Errorf("expected input to be pre-populated with 'Current Name', got %q", mode.input.Value())
+		}
+	} else {
+		t.Errorf("expected editingPortfolio mode, got %T", updated.mode)
+	}
+}
+
+func TestBrowsingXKeyOpensDeleteDialog(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Test Portfolio"},
+	}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'X'}})
+
+	if _, ok := updated.mode.(deletingPortfolio); !ok {
+		t.Errorf("expected deletingPortfolio mode, got %T", updated.mode)
+	}
+}
+
+func TestBrowsingXKeyNoPortfoliosIsNoOp(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'X'}})
+
+	if _, ok := updated.mode.(browsing); !ok {
+		t.Errorf("expected browsing mode when no portfolios, got %T", updated.mode)
+	}
+}
+
+func TestDeletingPortfolioEscReturnsToBrowsing(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.mode = deletingPortfolio{
+		portfolio: store.Portfolio{ID: 1, Name: "Test"},
+	}
+
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyEsc})
+
+	if _, ok := updated.mode.(browsing); !ok {
+		t.Errorf("expected browsing mode after Esc, got %T", updated.mode)
+	}
+}
+
+func TestDeletingPortfolioEnterReturnsCmd(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{
+		portfolios: []store.Portfolio{
+			{ID: 1, Name: "Test"},
+		},
+	})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Test"},
+	}
+	m.mode = deletingPortfolio{
+		portfolio: store.Portfolio{ID: 1, Name: "Test"},
+	}
+
+	_, cmd := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if cmd == nil {
+		t.Error("expected non-nil cmd when confirming delete")
+	}
+}
+
+func TestDeletingPortfolioOtherKeysIgnored(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.mode = deletingPortfolio{
+		portfolio: store.Portfolio{ID: 1, Name: "Test"},
+	}
+
+	// Press various keys
+	for _, key := range []rune{'j', 'k', 'a', 'n', '1'} {
+		updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{key}})
+		if _, ok := updated.mode.(deletingPortfolio); !ok {
+			t.Errorf("expected to stay in deletingPortfolio mode after pressing %c, got %T", key, updated.mode)
+		}
+	}
+}
+
+func TestDeletingPortfolioInputActive(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.mode = deletingPortfolio{}
+
+	if m.InputActive() {
+		t.Error("expected InputActive() to be false for deletingPortfolio mode")
+	}
+}
+
+func TestPortfolioDeletedMsgUpdatesPortfolios(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Portfolio A"},
+		{ID: 2, Name: "Portfolio B"},
+	}
+
+	updatedPortfolios := []store.Portfolio{
+		{ID: 1, Name: "Portfolio A"},
+	}
+
+	updated, _ := m.update(portfolioDeletedMsg{portfolios: updatedPortfolios})
+
+	if len(updated.portfolios) != 1 {
+		t.Errorf("expected 1 portfolio after delete, got %d", len(updated.portfolios))
+	}
+}
+
+func TestPortfolioDeletedMsgClampsCursor(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Portfolio A"},
+		{ID: 2, Name: "Portfolio B"},
+		{ID: 3, Name: "Portfolio C"},
+	}
+	m.cursor = 2 // on last portfolio
+
+	// Delete the last two portfolios
+	updatedPortfolios := []store.Portfolio{
+		{ID: 1, Name: "Portfolio A"},
+	}
+
+	updated, _ := m.update(portfolioDeletedMsg{portfolios: updatedPortfolios})
+
+	if updated.cursor != 0 {
+		t.Errorf("expected cursor clamped to 0, got %d", updated.cursor)
+	}
+}
+
+func TestPortfolioDeletedMsgResetsScrollOffset(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Portfolio A"},
+	}
+	m.scrollOffset = 10
+
+	updated, _ := m.update(portfolioDeletedMsg{portfolios: []store.Portfolio{}})
+
+	if updated.scrollOffset != 0 {
+		t.Errorf("expected scrollOffset reset to 0, got %d", updated.scrollOffset)
+	}
+}
+
+func TestPortfolioDeletedMsgToBrowsingWhenEmpty(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Portfolio A"},
+	}
+	m.mode = deletingPortfolio{}
+
+	updated, _ := m.update(portfolioDeletedMsg{portfolios: []store.Portfolio{}})
+
+	if _, ok := updated.mode.(browsing); !ok {
+		t.Errorf("expected browsing mode when all portfolios deleted, got %T", updated.mode)
+	}
+
+	if updated.holdings != nil {
+		t.Error("expected holdings to be nil when no portfolios")
+	}
+}
+
+func TestPortfolioDeletedMsgLoadsHoldingsForNewSelection(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{
+		portfolios: []store.Portfolio{
+			{ID: 1, Name: "Remaining"},
+		},
+	})
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "To Delete"},
+		{ID: 2, Name: "Remaining"},
+	}
+	m.cursor = 0
+	m.mode = deletingPortfolio{}
+
+	updatedPortfolios := []store.Portfolio{
+		{ID: 2, Name: "Remaining"},
+	}
+
+	_, cmd := m.update(portfolioDeletedMsg{portfolios: updatedPortfolios})
+
+	if cmd == nil {
+		t.Error("expected non-nil cmd to load holdings for new selection")
+	}
+}
+
+func TestEditPortfolioDialogShowsCurrentName(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Test Portfolio"},
+	}
+	ti := textinput.New()
+	ti.SetValue("Test Portfolio")
+	m.mode = editingPortfolio{
+		portfolio: store.Portfolio{ID: 1, Name: "Test Portfolio"},
+		input:     ti,
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "Test Portfolio") {
+		t.Error("expected edit dialog to show portfolio name")
+	}
+}
+
+func TestDeletePortfolioDialogShowsName(t *testing.T) {
+	m := NewPortfolioModel(testCtx, &StubStore{})
+	m.width = 100
+	m.height = 30
+	m.portfolios = []store.Portfolio{
+		{ID: 1, Name: "Test Portfolio"},
+	}
+	m.mode = deletingPortfolio{
+		portfolio: store.Portfolio{ID: 1, Name: "Test Portfolio"},
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "Test Portfolio") {
+		t.Error("expected delete dialog to show portfolio name")
 	}
 }
 

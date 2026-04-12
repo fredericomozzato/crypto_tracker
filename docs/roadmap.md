@@ -81,7 +81,21 @@ STATUS: DONE
 - `PgUp`/`PgDn` -> preview scrolling from menu mode
 - **TDD:** edit/delete state machine, cursor clamping after deletion
 
-## Slice 9 — Terminal size guard + `--debug` logging
+## Slice 9 - Portfolio management (edit and delete)
+STATUS: DONE
+
+When in the portfolios panel:
+
+- `e` to edit a portfolio's name
+- Open the edit dialogue box and allow user to edit the name. Renders the current name in the box
+- `esc` returns to portfolios panel, `enter` saves new name and returns to portfolios panel
+- Ensure portfolios' names are unique with error message and no-op editing if the name is repeated
+- `X` on a portfolio opens the deletion confirmation box
+- `enter` deletes the portfolio and returns to the portfolios panel
+- `esc` cancels the deletion and returns to the portfolios panel
+- **TDD**: ensures uniqueness, confirm the deletion and editing work
+
+## Slice 10 — Terminal size guard + `--debug` logging
 STATUS: PENDING
 
 - Minimum 100×30 enforced — centered message if too small, re-renders on resize
