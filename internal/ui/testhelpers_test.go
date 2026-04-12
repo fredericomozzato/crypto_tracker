@@ -4,14 +4,16 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/fredericomozzato/crypto_tracker/internal/store"
 )
 
 // StubStore implements store.Store for testing
 type StubStore struct {
-	coins []store.Coin
-	err   error
+	coins      []store.Coin
+	portfolios []store.Portfolio
+	err        error
 }
 
 func (s *StubStore) UpsertCoin(ctx context.Context, c store.Coin) error {
@@ -41,6 +43,26 @@ func (s *StubStore) Close() error {
 
 func (s *StubStore) UpdatePrices(ctx context.Context, prices map[string]float64) error {
 	return s.err
+}
+
+func (s *StubStore) CreatePortfolio(ctx context.Context, name string) (store.Portfolio, error) {
+	if s.err != nil {
+		return store.Portfolio{}, s.err
+	}
+	p := store.Portfolio{
+		ID:        int64(len(s.portfolios) + 1),
+		Name:      name,
+		CreatedAt: time.Now().Unix(),
+	}
+	s.portfolios = append(s.portfolios, p)
+	return p, nil
+}
+
+func (s *StubStore) GetAllPortfolios(ctx context.Context) ([]store.Portfolio, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.portfolios, nil
 }
 
 // StubAPI implements api.CoinGeckoClient for testing

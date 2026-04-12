@@ -115,3 +115,43 @@ func (s *SQLiteStore) UpdatePrices(ctx context.Context, prices map[string]float6
 
 	return nil
 }
+
+// CreatePortfolio inserts a new portfolio and returns it with the generated ID.
+func (s *SQLiteStore) CreatePortfolio(ctx context.Context, name string) (Portfolio, error) {
+	now := time.Now().Unix()
+	result, err := s.db.ExecContext(ctx, `
+		INSERT INTO portfolios (name, created_at) VALUES (?, ?)
+	`, name, now)
+	if err != nil {
+		return Portfolio{}, fmt.Errorf("creating portfolio %q: %w", name, err)
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return Portfolio{}, fmt.Errorf("getting portfolio id: %w", err)
+	}
+	return Portfolio{ID: id, Name: name, CreatedAt: now}, nil
+}
+
+// GetAllPortfolios returns all portfolios ordered by created_at ascending.
+func (s *SQLiteStore) GetAllPortfolios(ctx context.Context) ([]Portfolio, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, name, created_at FROM portfolios ORDER BY created_at ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("querying portfolios: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	portfolios := make([]Portfolio, 0)
+	for rows.Next() {
+		var p Portfolio
+		if err := rows.Scan(&p.ID, &p.Name, &p.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scanning portfolio: %w", err)
+		}
+		portfolios = append(portfolios, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating portfolios: %w", err)
+	}
+	return portfolios, nil
+}
