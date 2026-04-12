@@ -112,6 +112,7 @@ func makeCoins(n int) []store.Coin {
 	coins := make([]store.Coin, n)
 	for i := range coins {
 		coins[i] = store.Coin{
+			ID:         int64(i + 1),
 			ApiID:      fmt.Sprintf("coin-%d", i+1),
 			Name:       fmt.Sprintf("Coin %d", i+1),
 			Ticker:     fmt.Sprintf("C%d", i+1),

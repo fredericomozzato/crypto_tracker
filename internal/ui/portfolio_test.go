@@ -335,17 +335,26 @@ func TestCoinPickerReadyMsgWithNoCoinsShowsError(t *testing.T) {
 
 func TestCoinPickerFiltersOutAlreadyHeldCoins(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
-		portfolios:  []store.Portfolio{{ID: 1, Name: "Test"}},
-		holdingRows: []store.HoldingRow{{CoinID: 1, Name: "Coin 1"}},
+		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
 	})
 	m.width = 100
 	m.height = 30
-	// All threeCoins have IDs 1, 2, 3... coin ID 1 is held
+	// First load holdings - coin ID 1 is held
+	m, _ = m.update(holdingsLoadedMsg{holdings: []store.HoldingRow{{CoinID: 1, Name: "Coin 1"}}})
+	// All threeCoins have IDs 1, 2, 3... coin ID 1 should be filtered out
 	coins := threeCoins()
 	updated, _ := m.update(coinPickerReadyMsg{coins: coins})
 	// Check that we're in addCoin mode and only 2 coins are available
 	if !updated.InputActive() {
 		t.Fatal("expected to be in addCoin mode")
+	}
+	// Verify filtering: coin ID 1 should be filtered out, leaving 2 coins
+	addCoinMode, ok := updated.mode.(addCoin)
+	if !ok {
+		t.Fatal("expected mode to be addCoin")
+	}
+	if len(addCoinMode.allCoins) != 2 {
+		t.Errorf("expected 2 available coins after filtering, got %d", len(addCoinMode.allCoins))
 	}
 }
 

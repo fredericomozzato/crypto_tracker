@@ -1,7 +1,7 @@
 ---
 branch: feat/007-add-holding-coin-picker-amount-input
 revision: 2
-status: in_progress
+status: done
 ---
 
 # Slice 007 — Add Holding: Coin Picker + Amount Input (Revision 2)
@@ -32,7 +32,7 @@ coins, check `len(msg.coins) == 0` and set a distinct message such as
 
 | ID | Sev | Status | Summary |
 |----|-----|--------|---------|
-| I1 | LOW | OPEN | TestCoinPickerFiltersOutAlreadyHeldCoins doesn't effectively verify filtering |
+| I1 | LOW | FIXED | TestCoinPickerFiltersOutAlreadyHeldCoins doesn't effectively verify filtering |
 
 **I1** `internal/ui/portfolio_test.go:336-350`
 
