@@ -73,3 +73,27 @@ func TestFmtChangeZero(t *testing.T) {
 		t.Errorf("FmtChange(0.0) = %q, want %q", got, want)
 	}
 }
+
+func TestFmtMoneyZero(t *testing.T) {
+	got := FmtMoney(0)
+	want := "$0.00"
+	if got != want {
+		t.Errorf("FmtMoney(0) = %q, want %q", got, want)
+	}
+}
+
+func TestFmtMoneySmall(t *testing.T) {
+	got := FmtMoney(0.5)
+	want := "$0.50"
+	if got != want {
+		t.Errorf("FmtMoney(0.5) = %q, want %q", got, want)
+	}
+}
+
+func TestFmtMoneyThousands(t *testing.T) {
+	got := FmtMoney(12345.678)
+	want := "$12,345.68"
+	if got != want {
+		t.Errorf("FmtMoney(12345.678) = %q, want %q", got, want)
+	}
+}

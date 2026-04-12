@@ -24,6 +24,12 @@ func FmtChange(v float64) string {
 	return fmt.Sprintf("%.2f%%", v)
 }
 
+// FmtMoney formats a holding value as "$X,XXX.XX" (always 2 dp, thousands separator).
+func FmtMoney(v float64) string {
+	parts := strings.SplitN(fmt.Sprintf("%.2f", v), ".", 2)
+	return "$" + addCommas(parts[0]) + "." + parts[1]
+}
+
 func addCommas(s string) string {
 	n := len(s)
 	if n <= 3 {
