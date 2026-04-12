@@ -168,7 +168,7 @@ func (m PortfolioModel) View() string {
 	rightPanelInner := rightPanelOuter - 2
 
 	// Build left panel
-	leftContent := m.renderLeftPanel(contentHeight-2, leftPanelInner) // -2 for border
+	leftContent := m.renderLeftPanel(contentHeight, leftPanelInner)
 
 	// Build right panel (placeholder)
 	rightContent := m.renderRightPanel()
