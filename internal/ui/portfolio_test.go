@@ -271,11 +271,3 @@ func TestPortfolioHandlesWindowSizeMsg(t *testing.T) {
 		t.Errorf("expected height 39, got %d", updated.height)
 	}
 }
-
-func threePortfolios() []store.Portfolio {
-	return []store.Portfolio{
-		{ID: 1, Name: "Portfolio A"},
-		{ID: 2, Name: "Portfolio B"},
-		{ID: 3, Name: "Portfolio C"},
-	}
-}

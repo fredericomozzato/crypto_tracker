@@ -14,8 +14,10 @@ import (
 // portfolioMode is the discriminated union for portfolio modes.
 type portfolioMode interface{ isPortfolioMode() }
 
-type browsing struct{}
-type creating struct{ input textinput.Model }
+type (
+	browsing struct{}
+	creating struct{ input textinput.Model }
+)
 
 func (browsing) isPortfolioMode() {}
 func (creating) isPortfolioMode() {}
@@ -62,7 +64,7 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		switch m.mode.(type) {
+		switch mode := m.mode.(type) {
 		case browsing:
 			switch msg.Type {
 			case tea.KeyRunes:
@@ -92,14 +94,13 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 				m.mode = browsing{}
 				return m, nil
 			case tea.KeyEnter:
-				name := strings.TrimSpace(m.mode.(creating).input.Value())
+				name := strings.TrimSpace(mode.input.Value())
 				if name != "" {
 					return m, m.cmdCreatePortfolio(name)
 				}
 				return m, nil
 			default:
 				// Delegate to input
-				mode := m.mode.(creating)
 				newInput, cmd := mode.input.Update(msg)
 				mode.input = newInput
 				m.mode = mode
