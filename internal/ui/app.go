@@ -99,25 +99,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	switch m.activeTab {
-	case tabMarkets:
-		var cmd tea.Cmd
-		m.markets, cmd = m.markets.update(msg)
-		return m, cmd
-	case tabPortfolio:
-		var cmd tea.Cmd
-		m.portfolio, cmd = m.portfolio.update(msg)
-		return m, cmd
-	}
-	return m, nil
+	// Fan out background messages (non-key, non-resize) to both children
+	// so async responses like portfoliosLoadedMsg aren't dropped when the
+	// other tab is active.
+	var cmd1, cmd2 tea.Cmd
+	m.markets, cmd1 = m.markets.update(msg)
+	m.portfolio, cmd2 = m.portfolio.update(msg)
+	return m, tea.Batch(cmd1, cmd2)
 }
 
-// View renders the terminal-too-small guard, then tab bar + active child view.
+// View renders the tab bar + active child view.
 func (m AppModel) View() string {
-	if m.width < 100 || m.height < 30 {
-		return "Terminal too small — resize to at least 100×30"
-	}
-
 	tabBar := m.renderTabBar()
 	switch m.activeTab {
 	case tabMarkets:

@@ -232,11 +232,13 @@ func (m PortfolioModel) InputActive() bool {
 
 Two-panel layout with a status bar. Left panel ≈ 30 chars wide; right panel fills the rest. Content height = `m.height - 1` (1 row for status bar).
 
+**Panel borders:** Both panels must be rendered with `lipgloss.NewStyle().Border(lipgloss.NormalBorder())` so the user can always see the two distinct areas, even when holdings are empty. The left panel gets a fixed outer width (including its border); the right panel fills the remaining terminal width. Use `lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel)` — no plain space separator between them; the borders provide the visual separation.
+
 Left panel renders:
 - If `len(m.portfolios) == 0`: "no portfolios — press n to create one"
-- Otherwise: one line per portfolio; cursor row prefixed with `▶ `, others with `  `
+- Otherwise: one line per portfolio; the cursor row is rendered with `lipgloss.NewStyle().Reverse(true)` (full-width reverse-video highlight, matching the Markets tab style). No `▶` prefix — the highlight is the sole selection indicator.
 
-Right panel (Slice 6): "no holdings" placeholder.
+Right panel (Slice 6): "no holdings" placeholder, centered vertically and horizontally within the panel.
 
 If mode is `creating`, a centered overlay dialog is rendered on top of the panels:
 - Title: "New Portfolio"
@@ -368,7 +370,7 @@ Model in `creating` mode receives `portfoliosLoadedMsg`, mode becomes `browsing`
 Model with two portfolios loaded. `View()` contains both names.
 
 **`TestPortfolioViewShowsCursorIndicator`**
-Model with portfolios loaded, cursor at 0. `View()` contains `▶`.
+Model with portfolios loaded, cursor at 0. The selected portfolio name appears in the output (highlight is applied via `lipgloss.Reverse`; the test verifies the name is present and that the non-selected row does not carry the same styling as the selected row). No `▶` glyph is expected.
 
 **`TestPortfolioViewShowsEmptyStateWhenNoPortfolios`**
 No portfolios loaded. `View()` contains "no portfolios".

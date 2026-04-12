@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fredericomozzato/crypto_tracker/internal/store"
 )
 
 func TestNewAppModel(t *testing.T) {
@@ -280,19 +281,6 @@ func TestActiveInputActiveFalse(t *testing.T) {
 	}
 }
 
-func TestViewShowsTerminalTooSmall(t *testing.T) {
-	stub := &StubStore{}
-	api := &StubAPI{}
-	m := NewAppModel(context.Background(), stub, api)
-	m.width = 50
-	m.height = 20
-
-	view := m.View()
-	if !strings.Contains(view, "Terminal too small") {
-		t.Errorf("expected view to contain 'Terminal too small', got %q", view)
-	}
-}
-
 func TestViewShowsPortfolioEmptyState(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
@@ -305,5 +293,58 @@ func TestViewShowsPortfolioEmptyState(t *testing.T) {
 	view := m.View()
 	if !strings.Contains(view, "no portfolios") {
 		t.Errorf("expected view to contain 'no portfolios' when on Portfolio tab, got %q", view)
+	}
+}
+
+func TestBackgroundMessagesFannedOutToBothChildren(t *testing.T) {
+	// This test verifies the fix for I1: portfoliosLoadedMsg was being dropped
+	// when Markets tab was active on startup because messages were only routed
+	// to the active tab.
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	// Start on Markets tab (default)
+	m.activeTab = tabMarkets
+	m.width = 100
+	m.height = 30
+
+	// Set dimensions on children
+	m.markets.width = 100
+	m.markets.height = 29
+	m.portfolio.width = 100
+	m.portfolio.height = 29
+
+	// Simulate portfoliosLoadedMsg arriving while Markets tab is active
+	portfolios := []store.Portfolio{
+		{ID: 1, Name: "Test Portfolio"},
+	}
+	msg := portfoliosLoadedMsg{portfolios: portfolios}
+	updated, _ := m.Update(msg)
+	model := updated.(AppModel)
+
+	// Portfolio model should have received the message even though
+	// Markets tab was active
+	if len(model.portfolio.portfolios) != 1 {
+		t.Errorf("expected portfolio model to receive portfoliosLoadedMsg, got %d portfolios", len(model.portfolio.portfolios))
+	}
+}
+
+func TestPanelTitlesDisplayed(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.activeTab = tabPortfolio
+	// Set dimensions via WindowSizeMsg to propagate to children
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = updated.(AppModel)
+
+	view := m.View()
+	// Check for left panel title
+	if !strings.Contains(view, "Portfolios") {
+		t.Errorf("expected view to contain 'Portfolios' title, got %q", view)
+	}
+	// Check for right panel title
+	if !strings.Contains(view, "Holdings") {
+		t.Errorf("expected view to contain 'Holdings' title, got %q", view)
 	}
 }

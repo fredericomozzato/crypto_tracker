@@ -195,15 +195,20 @@ func (m PortfolioModel) View() string {
 }
 
 func (m PortfolioModel) renderLeftPanel(height, width int) string {
+	titleStyle := lipgloss.NewStyle().Bold(true)
+	title := titleStyle.Render("Portfolios")
+
 	if len(m.portfolios) == 0 {
-		return "no portfolios — press n to create one"
+		return title + "\n" + "no portfolios — press n to create one"
 	}
 
 	highlight := lipgloss.NewStyle().Reverse(true)
 
+	// Reserve 1 line for title
+	contentHeight := height - 1
 	var b strings.Builder
 	for i, p := range m.portfolios {
-		if i >= height {
+		if i >= contentHeight {
 			break
 		}
 		line := p.Name
@@ -216,14 +221,17 @@ func (m PortfolioModel) renderLeftPanel(height, width int) string {
 		}
 		b.WriteString(line + "\n")
 	}
-	return b.String()
+	return title + "\n" + b.String()
 }
 
 func (m PortfolioModel) renderRightPanel() string {
+	titleStyle := lipgloss.NewStyle().Bold(true)
+	title := titleStyle.Render("Holdings")
+
 	if len(m.portfolios) == 0 {
-		return ""
+		return title + "\n"
 	}
-	return "no holdings"
+	return title + "\n" + "no holdings"
 }
 
 func (m PortfolioModel) renderStatusBar() string {
