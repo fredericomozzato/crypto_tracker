@@ -11,9 +11,10 @@ import (
 
 // StubStore implements store.Store for testing
 type StubStore struct {
-	coins      []store.Coin
-	portfolios []store.Portfolio
-	err        error
+	coins       []store.Coin
+	portfolios  []store.Portfolio
+	holdingRows []store.HoldingRow
+	err         error
 }
 
 func (s *StubStore) UpsertCoin(ctx context.Context, c store.Coin) error {
@@ -63,6 +64,21 @@ func (s *StubStore) GetAllPortfolios(ctx context.Context) ([]store.Portfolio, er
 		return nil, s.err
 	}
 	return s.portfolios, nil
+}
+
+func (s *StubStore) UpsertHolding(ctx context.Context, portfolioID, coinID int64, amount float64) error {
+	return s.err
+}
+
+func (s *StubStore) DeleteHolding(ctx context.Context, id int64) error {
+	return s.err
+}
+
+func (s *StubStore) GetHoldingsForPortfolio(ctx context.Context, portfolioID int64) ([]store.HoldingRow, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.holdingRows, nil
 }
 
 // StubAPI implements api.CoinGeckoClient for testing
