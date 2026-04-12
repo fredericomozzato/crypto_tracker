@@ -314,3 +314,177 @@ func TestUpdatePricesEmpty(t *testing.T) {
 		t.Fatalf("expected no error for empty prices, got: %v", err)
 	}
 }
+
+func TestCreatePortfolio(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	_, err = s.CreatePortfolio(ctx, "Long Term")
+	if err != nil {
+		t.Fatalf("failed to create portfolio: %v", err)
+	}
+
+	portfolios, err := s.GetAllPortfolios(ctx)
+	if err != nil {
+		t.Fatalf("failed to get all portfolios: %v", err)
+	}
+
+	if len(portfolios) != 1 {
+		t.Fatalf("expected 1 portfolio, got %d", len(portfolios))
+	}
+
+	if portfolios[0].Name != "Long Term" {
+		t.Errorf("expected Name 'Long Term', got %s", portfolios[0].Name)
+	}
+
+	if portfolios[0].ID <= 0 {
+		t.Errorf("expected ID > 0, got %d", portfolios[0].ID)
+	}
+}
+
+func TestCreatePortfolioSetsCreatedAt(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	p, err := s.CreatePortfolio(ctx, "Test Portfolio")
+	if err != nil {
+		t.Fatalf("failed to create portfolio: %v", err)
+	}
+
+	if p.CreatedAt == 0 {
+		t.Error("expected CreatedAt to be set")
+	}
+
+	portfolios, err := s.GetAllPortfolios(ctx)
+	if err != nil {
+		t.Fatalf("failed to get all portfolios: %v", err)
+	}
+
+	if portfolios[0].CreatedAt == 0 {
+		t.Error("expected CreatedAt to be set when read back")
+	}
+}
+
+func TestGetAllPortfoliosEmpty(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	portfolios, err := s.GetAllPortfolios(ctx)
+	if err != nil {
+		t.Fatalf("failed to get all portfolios: %v", err)
+	}
+
+	if portfolios == nil {
+		t.Error("expected non-nil slice, got nil")
+	}
+
+	if len(portfolios) != 0 {
+		t.Errorf("expected 0 portfolios, got %d", len(portfolios))
+	}
+}
+
+func TestGetAllPortfoliosMultiple(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	names := []string{"A", "B", "C"}
+	for _, name := range names {
+		if _, err := s.CreatePortfolio(ctx, name); err != nil {
+			t.Fatalf("failed to create portfolio %s: %v", name, err)
+		}
+	}
+
+	portfolios, err := s.GetAllPortfolios(ctx)
+	if err != nil {
+		t.Fatalf("failed to get all portfolios: %v", err)
+	}
+
+	if len(portfolios) != 3 {
+		t.Fatalf("expected 3 portfolios, got %d", len(portfolios))
+	}
+
+	for i, name := range names {
+		if portfolios[i].Name != name {
+			t.Errorf("position %d: expected %s, got %s", i, name, portfolios[i].Name)
+		}
+	}
+}
+
+func TestCreatePortfolioReturnsInsertedID(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	p1, err := s.CreatePortfolio(ctx, "First")
+	if err != nil {
+		t.Fatalf("failed to create first portfolio: %v", err)
+	}
+
+	p2, err := s.CreatePortfolio(ctx, "Second")
+	if err != nil {
+		t.Fatalf("failed to create second portfolio: %v", err)
+	}
+
+	if p2.ID <= p1.ID {
+		t.Errorf("expected second ID (%d) > first ID (%d)", p2.ID, p1.ID)
+	}
+}
