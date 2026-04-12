@@ -170,7 +170,9 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 				for _, r := range msg.Runes {
 					switch r {
 					case 'j', 'J':
-						mode.cursor = intMin(mode.cursor+1, len(mode.filtered)-1)
+						if len(mode.filtered) > 0 {
+							mode.cursor = intMin(mode.cursor+1, len(mode.filtered)-1)
+						}
 						m.mode = mode
 						return m, nil
 					case 'k', 'K':
@@ -184,13 +186,20 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 				mode.filter = newInput
 				mode.filtered = filterCoins(mode.allCoins, mode.filter.Value())
 				// Clamp cursor after filter
-				if mode.cursor >= len(mode.filtered) {
-					mode.cursor = intMax(len(mode.filtered)-1, 0)
+				switch {
+				case len(mode.filtered) == 0:
+					mode.cursor = 0
+				case mode.cursor >= len(mode.filtered):
+					mode.cursor = len(mode.filtered) - 1
+				case mode.cursor < 0:
+					mode.cursor = 0
 				}
 				m.mode = mode
 				return m, cmd
 			case tea.KeyDown:
-				mode.cursor = intMin(mode.cursor+1, len(mode.filtered)-1)
+				if len(mode.filtered) > 0 {
+					mode.cursor = intMin(mode.cursor+1, len(mode.filtered)-1)
+				}
 				m.mode = mode
 				return m, nil
 			case tea.KeyUp:
@@ -202,8 +211,13 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 				newInput, cmd := mode.filter.Update(msg)
 				mode.filter = newInput
 				mode.filtered = filterCoins(mode.allCoins, mode.filter.Value())
-				if mode.cursor >= len(mode.filtered) {
-					mode.cursor = intMax(len(mode.filtered)-1, 0)
+				switch {
+				case len(mode.filtered) == 0:
+					mode.cursor = 0
+				case mode.cursor >= len(mode.filtered):
+					mode.cursor = len(mode.filtered) - 1
+				case mode.cursor < 0:
+					mode.cursor = 0
 				}
 				m.mode = mode
 				return m, cmd
@@ -279,7 +293,8 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 		}
 		// Enter addCoin mode
 		ti := textinput.New()
-		ti.Placeholder = "search..."
+		ti.Placeholder = "filter coins..."
+		ti.CharLimit = 30
 		ti.Focus()
 		m.mode = addCoin{
 			filter:   ti,
@@ -598,7 +613,8 @@ func (m PortfolioModel) transitionToAddAmount(mode addCoin) (PortfolioModel, tea
 	}
 	selectedCoin := mode.filtered[mode.cursor]
 	ti := textinput.New()
-	ti.Placeholder = "amount"
+	ti.Placeholder = "e.g. 0.5"
+	ti.CharLimit = 20
 	ti.Focus()
 	m.mode = addAmount{
 		coin:     selectedCoin,
