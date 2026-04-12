@@ -155,3 +155,69 @@ func (s *SQLiteStore) GetAllPortfolios(ctx context.Context) ([]Portfolio, error)
 	}
 	return portfolios, nil
 }
+
+// UpsertHolding inserts a new holding or updates an existing one based on portfolio_id and coin_id.
+func (s *SQLiteStore) UpsertHolding(ctx context.Context, portfolioID, coinID int64, amount float64) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO holdings (portfolio_id, coin_id, amount)
+		VALUES (?, ?, ?)
+		ON CONFLICT(portfolio_id, coin_id) DO UPDATE SET
+			amount = excluded.amount
+	`, portfolioID, coinID, amount)
+	if err != nil {
+		return fmt.Errorf("upserting holding (portfolio=%d coin=%d): %w", portfolioID, coinID, err)
+	}
+	return nil
+}
+
+// DeleteHolding deletes a holding by its ID.
+func (s *SQLiteStore) DeleteHolding(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM holdings WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("deleting holding %d: %w", id, err)
+	}
+	return nil
+}
+
+// GetHoldingsForPortfolio returns all holdings for a portfolio joined with coin data.
+func (s *SQLiteStore) GetHoldingsForPortfolio(ctx context.Context, portfolioID int64) ([]HoldingRow, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT
+			h.id,
+			h.portfolio_id,
+			h.coin_id,
+			c.api_id,
+			c.name,
+			c.ticker,
+			h.amount,
+			c.rate,
+			c.price_change,
+			h.amount * c.rate AS value,
+			CASE
+				WHEN SUM(h.amount * c.rate) OVER () = 0 THEN 0
+				ELSE (h.amount * c.rate) / SUM(h.amount * c.rate) OVER () * 100
+			END AS proportion
+		FROM holdings h
+		JOIN coins c ON c.id = h.coin_id
+		WHERE h.portfolio_id = ?
+		ORDER BY value DESC
+	`, portfolioID)
+	if err != nil {
+		return nil, fmt.Errorf("querying holdings for portfolio %d: %w", portfolioID, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	holdings := make([]HoldingRow, 0)
+	for rows.Next() {
+		var h HoldingRow
+		if err := rows.Scan(&h.ID, &h.PortfolioID, &h.CoinID, &h.ApiID, &h.Name, &h.Ticker,
+			&h.Amount, &h.Rate, &h.PriceChange, &h.Value, &h.Proportion); err != nil {
+			return nil, fmt.Errorf("scanning holding: %w", err)
+		}
+		holdings = append(holdings, h)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating holdings: %w", err)
+	}
+	return holdings, nil
+}
