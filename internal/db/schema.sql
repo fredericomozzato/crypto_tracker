@@ -14,3 +14,11 @@ CREATE TABLE IF NOT EXISTS portfolios (
     name       TEXT    NOT NULL,
     created_at INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS holdings (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    portfolio_id INTEGER NOT NULL REFERENCES portfolios(id) ON DELETE CASCADE,
+    coin_id      INTEGER NOT NULL REFERENCES coins(id) ON DELETE CASCADE,
+    amount       REAL    NOT NULL,
+    UNIQUE(portfolio_id, coin_id)
+);
