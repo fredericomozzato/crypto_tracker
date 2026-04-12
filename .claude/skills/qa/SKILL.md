@@ -46,39 +46,37 @@ If no slice is `IN_REVIEW`, stop and tell the user to run `/build` first.
 Note the slice number, name, branch name. Open `docs/issues/NNN-kebab-case-name.md` and
 read the entire file — scope, file plan, implementation order, and verification commands.
 
-### 3. Create or update the review document
+### 3. Create the revision file
 
-Path: `docs/reviews/NNN-kebab-case-name.md`
+Each revision is a separate file inside a per-slice directory:
 
-**If the file does not exist**, create it with this structure:
+```
+docs/reviews/NNN-kebab-case-name/
+  revision-1.md   ← status: done or passed
+  revision-2.md   ← status: in_progress  (current)
+```
+
+**Determine the next revision number:**
+- If `docs/reviews/NNN-kebab-case-name/` does not exist, create it. Next revision is 1.
+- If it exists, count the `revision-*.md` files inside. Next revision is count + 1.
+
+**Create `docs/reviews/NNN-kebab-case-name/revision-N.md`** with this structure:
 
 ```markdown
 ---
 branch: feat/NNN-kebab-case-name
+revision: N
 status: in_progress
-revision: 1
 ---
 
-# Slice NNN — Name
+# Slice NNN — Name (Revision N)
 
 ## Smoke test + completeness audit
 
 ## Implementation review
 ```
 
-**If the file already exists**, it is a re-review after fixes. Do not overwrite it:
-1. Increment `revision: N` → `revision: N+1` in the frontmatter
-2. Set `status: in_progress`
-3. Append a new revision section at the end of the file:
-
-```markdown
----
-
-## Revision N+1
-```
-
-All findings from this run go under that heading, using the same table + detail
-format. Previous revision sections are left untouched — they are the audit trail.
+Do not touch any earlier revision files — they are the audit trail.
 
 ---
 
@@ -206,9 +204,11 @@ overwritten and `nil` is returned. Callers cannot detect cancellation.
 formatting helpers belong in `internal/format`.
 ```
 
-### 7. Update the review document
+### 7. Update the revision file
 
-Set `status: open` if there are any `OPEN` findings, otherwise `status: passed`.
+Update the `status` field in the current revision file's frontmatter:
+- Findings exist → leave as `in_progress` (fix skill's target)
+- No findings → set to `passed`
 
 Update the roadmap **only** if there are no open findings:
 - Change `STATUS: IN_REVIEW` → `STATUS: DONE`
