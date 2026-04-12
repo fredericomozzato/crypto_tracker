@@ -62,7 +62,7 @@ STATUS: IN_REVIEW
 - **TDD:** portfolio CRUD in store, dialog state transitions
 
 ## Slice 7 — Add holding: coin picker + amount input
-STATUS: PENDING
+STATUS: IN_REVIEW
 
 - `a` opens coin picker dialog (searchable, filterable list of all coins)
 - Select coin → amount input → upsert holding
