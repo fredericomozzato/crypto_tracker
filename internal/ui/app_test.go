@@ -298,8 +298,9 @@ func TestViewShowsPortfolioEmptyState(t *testing.T) {
 	api := &StubAPI{}
 	m := NewAppModel(context.Background(), stub, api)
 	m.activeTab = tabPortfolio
-	m.width = 100
-	m.height = 30
+	// Set dimensions via WindowSizeMsg to propagate to children
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = updated.(AppModel)
 
 	view := m.View()
 	if !strings.Contains(view, "no portfolios") {

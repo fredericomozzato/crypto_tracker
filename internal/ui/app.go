@@ -45,13 +45,13 @@ func NewAppModel(ctx context.Context, s store.Store, c api.CoinGeckoClient) AppM
 	return AppModel{
 		activeTab: tabMarkets,
 		markets:   NewMarketsModel(ctx, s, c),
-		portfolio: NewPortfolioModel(),
+		portfolio: NewPortfolioModel(ctx, s),
 	}
 }
 
-// Init delegates to the Markets model's Init (only tab that does I/O on startup).
+// Init delegates to both children models' Init commands.
 func (m AppModel) Init() tea.Cmd {
-	return m.markets.Init()
+	return tea.Batch(m.markets.Init(), m.portfolio.Init())
 }
 
 // Update handles WindowSizeMsg (propagated to children with height-1),
