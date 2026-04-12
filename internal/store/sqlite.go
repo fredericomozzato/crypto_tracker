@@ -179,6 +179,34 @@ func (s *SQLiteStore) DeleteHolding(ctx context.Context, id int64) error {
 	return nil
 }
 
+// RenamePortfolio updates the name of a portfolio.
+func (s *SQLiteStore) RenamePortfolio(ctx context.Context, id int64, name string) error {
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE portfolios SET name = ? WHERE id = ?`, name, id,
+	)
+	if err != nil {
+		return fmt.Errorf("renaming portfolio: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("renaming portfolio %d: %w", id, err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("renaming portfolio %d: not found", id)
+	}
+	return nil
+}
+
+// DeletePortfolio deletes a portfolio by its ID.
+// Holdings are cascade-deleted via ON DELETE CASCADE on holdings.portfolio_id.
+func (s *SQLiteStore) DeletePortfolio(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM portfolios WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("deleting portfolio %d: %w", id, err)
+	}
+	return nil
+}
+
 // GetHoldingsForPortfolio returns all holdings for a portfolio joined with coin data.
 func (s *SQLiteStore) GetHoldingsForPortfolio(ctx context.Context, portfolioID int64) ([]HoldingRow, error) {
 	rows, err := s.db.QueryContext(ctx, `

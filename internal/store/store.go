@@ -59,4 +59,8 @@ type Store interface {
 	UpsertHolding(ctx context.Context, portfolioID, coinID int64, amount float64) error
 	DeleteHolding(ctx context.Context, id int64) error
 	GetHoldingsForPortfolio(ctx context.Context, portfolioID int64) ([]HoldingRow, error)
+
+	// new in Slice 9
+	RenamePortfolio(ctx context.Context, id int64, name string) error
+	DeletePortfolio(ctx context.Context, id int64) error
 }
