@@ -277,6 +277,12 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 	case coinPickerReadyMsg:
 		// Build map of already-held coin IDs
 		heldCoinIDs := make(map[int64]bool)
+		// Check if no coins are loaded in the database
+		if len(msg.coins) == 0 {
+			m.lastErr = "no coins loaded — visit Markets tab first"
+			return m, nil
+		}
+
 		for _, h := range m.holdings {
 			heldCoinIDs[h.CoinID] = true
 		}
