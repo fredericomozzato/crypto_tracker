@@ -170,11 +170,11 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 				for _, r := range msg.Runes {
 					switch r {
 					case 'j', 'J':
-						mode.cursor = min(mode.cursor+1, len(mode.filtered)-1)
+						mode.cursor = intMin(mode.cursor+1, len(mode.filtered)-1)
 						m.mode = mode
 						return m, nil
 					case 'k', 'K':
-						mode.cursor = max(mode.cursor-1, 0)
+						mode.cursor = intMax(mode.cursor-1, 0)
 						m.mode = mode
 						return m, nil
 					}
@@ -185,16 +185,16 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 				mode.filtered = filterCoins(mode.allCoins, mode.filter.Value())
 				// Clamp cursor after filter
 				if mode.cursor >= len(mode.filtered) {
-					mode.cursor = max(len(mode.filtered)-1, 0)
+					mode.cursor = intMax(len(mode.filtered)-1, 0)
 				}
 				m.mode = mode
 				return m, cmd
 			case tea.KeyDown:
-				mode.cursor = min(mode.cursor+1, len(mode.filtered)-1)
+				mode.cursor = intMin(mode.cursor+1, len(mode.filtered)-1)
 				m.mode = mode
 				return m, nil
 			case tea.KeyUp:
-				mode.cursor = max(mode.cursor-1, 0)
+				mode.cursor = intMax(mode.cursor-1, 0)
 				m.mode = mode
 				return m, nil
 			default:
@@ -203,7 +203,7 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 				mode.filter = newInput
 				mode.filtered = filterCoins(mode.allCoins, mode.filter.Value())
 				if mode.cursor >= len(mode.filtered) {
-					mode.cursor = max(len(mode.filtered)-1, 0)
+					mode.cursor = intMax(len(mode.filtered)-1, 0)
 				}
 				m.mode = mode
 				return m, cmd
@@ -385,14 +385,14 @@ func (m PortfolioModel) renderAddCoinDialog(mode addCoin) string {
 	// Show filtered coins
 	for i, c := range mode.filtered {
 		if i >= 10 { // Limit to 10 visible items
-			b.WriteString(fmt.Sprintf("... and %d more\n", len(mode.filtered)-10))
+			_, _ = fmt.Fprintf(&b, "... and %d more\n", len(mode.filtered)-10)
 			break
 		}
 		prefix := "  "
 		if i == mode.cursor {
 			prefix = "> "
 		}
-		b.WriteString(fmt.Sprintf("%s%s (%s)\n", prefix, c.Name, c.Ticker))
+		_, _ = fmt.Fprintf(&b, "%s%s (%s)\n", prefix, c.Name, c.Ticker)
 	}
 
 	return lipgloss.NewStyle().
@@ -403,7 +403,7 @@ func (m PortfolioModel) renderAddCoinDialog(mode addCoin) string {
 
 func (m PortfolioModel) renderAddAmountDialog(mode addAmount) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Add %s (%s)\n\n", mode.coin.Name, mode.coin.Ticker))
+	_, _ = fmt.Fprintf(&b, "Add %s (%s)\n\n", mode.coin.Name, mode.coin.Ticker)
 	b.WriteString("Amount: " + mode.input.View() + "\n")
 	if mode.errMsg != "" {
 		b.WriteString("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render(mode.errMsg))
@@ -469,13 +469,13 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 	}
 
 	// Header
-	b.WriteString(fmt.Sprintf("%-15s %8s %10s %12s %12s %8s %6s\n", "Coin", "Ticker", "Amount", "Price", "Value", "24h", "%"))
-	b.WriteString(strings.Repeat("-", min(width, 80)) + "\n")
+	_, _ = fmt.Fprintf(&b, "%-15s %8s %10s %12s %12s %8s %6s\n", "Coin", "Ticker", "Amount", "Price", "Value", "24h", "%")
+	b.WriteString(strings.Repeat("-", intMin(width, 80)) + "\n")
 
 	// Rows
 	for _, h := range m.holdings {
 		changeStr := format.FmtChange(h.PriceChange)
-		b.WriteString(fmt.Sprintf("%-15s %8s %10.4f %12s %12s %8s %5.1f%%\n",
+		_, _ = fmt.Fprintf(&b, "%-15s %8s %10.4f %12s %12s %8s %5.1f%%\n",
 			truncate(h.Name, 15),
 			h.Ticker,
 			h.Amount,
@@ -483,7 +483,7 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 			format.FmtMoney(h.Value),
 			changeStr,
 			h.Proportion,
-		))
+		)
 	}
 
 	return b.String()
@@ -625,14 +625,14 @@ func filterCoins(coins []store.Coin, query string) []store.Coin {
 	return result
 }
 
-func min(a, b int) int {
+func intMin(a, b int) int {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func max(a, b int) int {
+func intMax(a, b int) int {
 	if a > b {
 		return a
 	}
