@@ -770,7 +770,7 @@ func (m PortfolioModel) renderStatusBar() string {
 	case addAmount:
 		content = "Enter to confirm • Esc back to coin selection"
 	case listing:
-		content = "j/k holdings • Enter edit • X delete • a add • Esc menu"
+		content = "j/k holdings • g/G top/bottom • Enter edit • X delete • a add holding • Esc back to menu • q quit"
 	case editingAmount:
 		content = "Enter to save • Esc cancel"
 	case deleting:

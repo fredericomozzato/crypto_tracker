@@ -1,7 +1,7 @@
 ---
 branch: feat/008-list-mode-edit-delete-holding
 revision: 1
-status: in_progress
+status: done
 ---
 
 # Slice 008 — List Mode + Edit + Delete Holding (Revision 1)
@@ -35,7 +35,7 @@ return to the correct mode.
 | ID | Sev | Status | Summary |
 |----|-----|--------|---------|
 | I1 | LOW | DISCARDED | Missing Ctrl+F/Ctrl+B key bindings for preview scrolling per PRD |
-| I2 | LOW | OPEN | Listing mode status bar omits g/G and q shortcuts |
+| I2 | LOW | FIXED | Listing mode status bar omits g/G and q shortcuts |
 
 **I1** `internal/ui/portfolio.go:171-178`
 
