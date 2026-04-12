@@ -1,5 +1,5 @@
 ---
-status: in_progress
+status: in_review
 branch: feat/006-create-portfolio-left-panel
 ---
 

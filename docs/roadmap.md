@@ -54,7 +54,7 @@ STATUS: DONE
 - **TDD:** tab switching logic, input suppression
 
 ## Slice 6 — Create portfolio + left panel
-STATUS: IN_PROGRESS
+STATUS: IN_REVIEW
 
 - Left panel lists portfolios with `▶` cursor, `j`/`k` to navigate
 - `n` opens create dialog, text input (max 50 chars), `Enter` saves, `Esc` cancels
