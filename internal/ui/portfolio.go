@@ -24,12 +24,14 @@ type (
 		allCoins []store.Coin // already filtered — held coins removed
 		filtered []store.Coin // subset matching current filter query
 		cursor   int
+		origin   portfolioMode // track parent mode (browsing or listing) for return
 	}
 	addAmount struct {
 		coin     store.Coin
 		input    textinput.Model
 		errMsg   string
-		coinMode addCoin // preserved so Esc returns to coin picker with state intact
+		coinMode addCoin       // preserved so Esc returns to coin picker with state intact
+		origin   portfolioMode // track parent mode (browsing or listing) for return
 	}
 	listing       struct{} // list mode: right panel focus, j/k navigate holdings
 	editingAmount struct {
@@ -61,7 +63,8 @@ type portfoliosLoadedMsg struct {
 
 // coinPickerReadyMsg is sent when all coins are loaded for the picker.
 type coinPickerReadyMsg struct {
-	coins []store.Coin
+	coins  []store.Coin
+	origin portfolioMode // track parent mode (browsing or listing) for return
 }
 
 // holdingsLoadedMsg is sent when holdings are loaded for the current portfolio.
@@ -200,7 +203,7 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 		case addCoin:
 			switch msg.Type {
 			case tea.KeyEsc:
-				m.mode = browsing{}
+				m.mode = mode.origin
 				return m, nil
 			case tea.KeyEnter:
 				if len(mode.filtered) > 0 {
@@ -439,7 +442,7 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 			m.lastErr = "all coins already in portfolio"
 			return m, nil
 		}
-		// Enter addCoin mode
+		// Enter addCoin mode with origin preserved
 		m.lastErr = ""
 		ti := textinput.New()
 		ti.Placeholder = "filter coins..."
@@ -450,6 +453,7 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 			allCoins: available,
 			filtered: available,
 			cursor:   0,
+			origin:   msg.origin,
 		}
 		return m, nil
 
@@ -459,11 +463,21 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 
 	case holdingsSavedMsg:
 		m.holdings = msg.holdings
-		// If we were in editingAmount mode, return to listing instead of browsing
-		if _, wasEditing := m.mode.(editingAmount); wasEditing {
+		// Determine return mode based on the mode we were in
+		switch prevMode := m.mode.(type) {
+		case editingAmount:
+			// Editing always returns to listing
 			m.mode = listing{}
 			m.clampHoldingsCursor()
-		} else {
+		case addAmount:
+			// Adding returns to listing if we came from listing mode, else browsing
+			if _, fromListing := prevMode.origin.(listing); fromListing {
+				m.mode = listing{}
+				m.clampHoldingsCursor()
+			} else {
+				m.mode = browsing{}
+			}
+		default:
 			m.mode = browsing{}
 		}
 		return m, nil
@@ -823,7 +837,7 @@ func (m PortfolioModel) cmdOpenCoinPicker() tea.Cmd {
 		if err != nil {
 			return errMsg{err: fmt.Errorf("loading coins for picker: %w", err)}
 		}
-		return coinPickerReadyMsg{coins: coins}
+		return coinPickerReadyMsg{coins: coins, origin: browsing{}}
 	}
 }
 
@@ -866,6 +880,7 @@ func (m PortfolioModel) transitionToAddAmount(mode addCoin) (PortfolioModel, tea
 		coin:     selectedCoin,
 		input:    ti,
 		coinMode: mode,
+		origin:   mode.origin,
 	}
 	return m, nil
 }
@@ -961,7 +976,7 @@ func (m PortfolioModel) cmdOpenCoinPickerFromList(listMode listing) tea.Cmd {
 		if err != nil {
 			return errMsg{err: fmt.Errorf("loading coins for picker: %w", err)}
 		}
-		return coinPickerReadyMsg{coins: coins}
+		return coinPickerReadyMsg{coins: coins, origin: listMode}
 	}
 }
 
