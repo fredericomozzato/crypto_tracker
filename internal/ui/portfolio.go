@@ -298,6 +298,7 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 			return m, nil
 		}
 		// Enter addCoin mode
+		m.lastErr = ""
 		ti := textinput.New()
 		ti.Placeholder = "filter coins..."
 		ti.CharLimit = 30
