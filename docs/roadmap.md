@@ -46,7 +46,7 @@ STATUS: DONE
 - **TDD:** tick/refresh state transitions, error display logic, stale detection
 
 ## Slice 5 — Tab bar + empty Portfolio tab
-STATUS: PENDING
+STATUS: DONE
 
 - Two tabs rendered at top, `Tab`/`Shift+Tab`/`1`/`2` to switch
 - Portfolio tab shows empty state: "no portfolios — press n to create one"
