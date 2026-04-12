@@ -71,7 +71,7 @@ STATUS: DONE
 - **TDD:** holding upsert (including update-on-conflict), filter logic, computed values
 
 ## Slice 8 — List mode + edit + delete holding
-STATUS: IN_REVIEW
+STATUS: DONE
 
 - `Enter` from menu mode enters list mode (right panel focus)
 - Add focus hint in the border changing the color of the selected panel's border
