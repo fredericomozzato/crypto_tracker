@@ -1,5 +1,5 @@
 ---
-status: in_review
+status: done
 branch: feat/011-code-correctness-clarity
 ---
 
