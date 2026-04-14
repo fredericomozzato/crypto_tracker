@@ -5,6 +5,7 @@ fmt:
 
 lint:
 	gofumpt -l . | grep . && exit 1 || true
+	golangci-lint config verify
 	golangci-lint run ./...
 	govulncheck ./...
 
