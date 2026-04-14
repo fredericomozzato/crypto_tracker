@@ -95,10 +95,43 @@ When in the portfolios panel:
 - `esc` cancels the deletion and returns to the portfolios panel
 - **TDD**: ensures uniqueness, confirm the deletion and editing work
 
-## Slice 10 — Terminal size guard + `--debug` logging
+## Slice 10 — Docs & tooling cleanup
+STATUS: DONE
+
+No code changes — removes stale requirements and fixes tooling config.
+
+- Remove terminal size guard requirement from CLAUDE.md (any terminal size is supported; the 100×30 rule is obsolete and confuses agents)
+- Remove `gosimple` linter mention from CLAUDE.md (tooling compatibility issue — not applicable)
+- Fix Makefile `lint` target to fail hard on golangci-lint config errors
+
+## Slice 11 — Code correctness & clarity
 STATUS: PENDING
 
-- Minimum 100×30 enforced — centered message if too small, re-renders on resize
+Small, targeted code changes with no new runtime behaviour.
+
+- Fix ignored `io.ReadAll` errors in `internal/api/coingecko.go:86, 144` — `body, _ := io.ReadAll(resp.Body)` silently drops read errors in non-2xx branches
+- Clean up unused `database` local in `cmd/crypto-tracker/main.go:42` — store owns the DB lifecycle; the raw `*sql.DB` reference shouldn't linger
+- Consistent `defer` style for `rows.Close()` across `internal/store/sqlite.go`
+- Named constants for magic numbers: 100-coin fetch limit in `internal/ui/markets.go:81, 85` and the unnamed 60s refresh threshold
+- Add comment documenting quit-time cancellation assumption in `cmd/crypto-tracker/main.go:32-33, 66` (safe today due to atomic upserts; must be revisited for any future non-atomic write)
+- Add comment explaining implicit message broadcast pattern in `internal/ui/app.go:62-109` (background messages fan out to both tabs via `tea.Batch`)
+- **TDD:** no new tests required; verify existing suite stays green
+
+## Slice 12 — CoinGecko rate limiting
+STATUS: PENDING
+
+New runtime behaviour: the app must stay within the free-tier limit of ~30 req/min.
+
+- Implement request throttling in `internal/api/coingecko.go`
+- Inspect rate-limit response headers and back off when approaching the limit
+- `r` manual refresh is a no-op if a request is already in-flight (already enforced) — extend to also no-op when rate-limited
+- Surface rate-limit status in the status bar (e.g. `Rate limited — retrying in Xs`)
+- **TDD:** throttle logic, backoff behaviour, status bar state for rate-limited condition
+
+## Slice 13 — `--debug` logging
+STATUS: PENDING
+
 - `--debug` flag enables `slog` logging to `$XDG_STATE_HOME/crypto_tracker/app.log`
 - No flag → logging goes to `io.Discard`
-- **TDD:** size guard logic, flag parsing
+- Directory created automatically if it doesn't exist
+- **TDD:** flag parsing, log file creation, discard behaviour without flag

@@ -78,7 +78,7 @@ p := tea.NewProgram(
 )
 ```
 
-Every model must handle `tea.WindowSizeMsg`. If the terminal is below 100 columns × 30 rows, all content is hidden and a single centered message is rendered: `"Terminal too small — resize to at least 100×30"`.
+Every model must handle `tea.WindowSizeMsg`.
 
 ### Elm Architecture (Bubble Tea)
 - All side effects (API calls, DB queries, timers) are returned as `tea.Cmd` from `Update`. Never spawn goroutines directly inside handlers.
@@ -240,7 +240,6 @@ if debug {
 Active linters:
 - `errcheck` — catches ignored errors
 - `staticcheck` — logic bugs, deprecated APIs, unreachable code
-- `gosimple` — suggests simpler constructs
 - `gocritic` — style and correctness
 - `noctx` — flags HTTP requests made without a context
 
@@ -317,7 +316,6 @@ linters:
   enable:
     - errcheck
     - staticcheck
-    - gosimple
     - gocritic
     - noctx
 
