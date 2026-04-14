@@ -105,7 +105,7 @@ No code changes — removes stale requirements and fixes tooling config.
 - Fix Makefile `lint` target to fail hard on golangci-lint config errors
 
 ## Slice 11 — Code correctness & clarity
-STATUS: PENDING
+STATUS: IN_REVIEW
 
 Small, targeted code changes with no new runtime behaviour.
 
