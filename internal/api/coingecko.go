@@ -83,7 +83,10 @@ func (c *HTTPClient) FetchMarkets(ctx context.Context, limit int) ([]store.Coin,
 	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, fmt.Errorf("fetching markets: %d (failed to read response body: %w)", resp.StatusCode, readErr)
+		}
 		return nil, fmt.Errorf("fetching markets: %d %s", resp.StatusCode, string(body))
 	}
 
@@ -141,7 +144,10 @@ func (c *HTTPClient) FetchPrices(ctx context.Context, apiIDs []string) (map[stri
 	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, fmt.Errorf("fetching prices: %d (failed to read response body: %w)", resp.StatusCode, readErr)
+		}
 		return nil, fmt.Errorf("fetching prices: %d %s", resp.StatusCode, string(body))
 	}
 

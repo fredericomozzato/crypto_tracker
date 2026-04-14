@@ -99,9 +99,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Fan out background messages (non-key, non-resize) to both children
-	// so async responses like portfoliosLoadedMsg aren't dropped when the
-	// other tab is active.
+	// Background messages (non-key, non-resize) are always forwarded to both
+	// children via tea.Batch. This ensures that async responses like
+	// coinsLoadedMsg and pricesUpdatedMsg reach whichever tab issued the
+	// command, even if the user has since switched tabs. Without this
+	// broadcast, responses would be silently dropped when the inactive tab
+	// doesn't match the issuing tab.
 	var cmd1, cmd2 tea.Cmd
 	m.markets, cmd1 = m.markets.update(msg)
 	m.portfolio, cmd2 = m.portfolio.update(msg)

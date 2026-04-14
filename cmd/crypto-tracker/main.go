@@ -29,6 +29,10 @@ func realMain() int {
 	cleanup := setupLogger(*debug)
 	defer cleanup()
 
+	// Root context is cancelled on SIGINT/SIGTERM, propagating cancellation to
+	// all in-flight HTTP requests and DB queries. This is safe because every DB
+	// write is an atomic upsert — there is no risk of partial or corrupt data on
+	// abrupt shutdown. Must revisit if multi-statement transactions are added.
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
@@ -39,6 +43,8 @@ func realMain() int {
 		return 1
 	}
 
+	// The raw *sql.DB handle is passed to the store and not used directly after
+	// this point. The store owns the DB lifecycle (including Close via defer below).
 	database, err := db.Open(ctx, dbPath)
 	if err != nil {
 		slog.Error("opening database", "error", err)

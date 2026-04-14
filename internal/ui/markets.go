@@ -47,8 +47,11 @@ type pricesUpdatedMsg struct {
 // tickMsg fires every 5 seconds from cmdTick.
 type tickMsg time.Time
 
-// staleThreshold is the duration after which data is considered stale.
-const staleThreshold = 5 * time.Minute
+const (
+	coinFetchLimit  = 100
+	refreshInterval = 60 * time.Second
+	staleThreshold  = 5 * time.Minute
+)
 
 // NewMarketsModel creates a new MarketsModel with the given dependencies.
 func NewMarketsModel(ctx context.Context, s store.Store, c api.CoinGeckoClient) MarketsModel {
@@ -78,11 +81,11 @@ func (m MarketsModel) cmdLoad() tea.Cmd {
 		if err != nil {
 			return errMsg{err: fmt.Errorf("loading coins: %w", err)}
 		}
-		if len(existing) >= 100 {
+		if len(existing) >= coinFetchLimit {
 			return coinsLoadedMsg{coins: existing}
 		}
 
-		fetched, err := m.client.FetchMarkets(m.ctx, 100)
+		fetched, err := m.client.FetchMarkets(m.ctx, coinFetchLimit)
 		if err != nil {
 			return errMsg{err: err}
 		}
@@ -137,7 +140,7 @@ func (m MarketsModel) update(msg tea.Msg) (MarketsModel, tea.Cmd) {
 		m.height = msg.Height
 	case tickMsg:
 		cmds := []tea.Cmd{cmdTick()}
-		if !m.refreshing && len(m.coins) > 0 && time.Since(m.lastRefreshed) >= 60*time.Second {
+		if !m.refreshing && len(m.coins) > 0 && time.Since(m.lastRefreshed) >= refreshInterval {
 			m.refreshing = true
 			cmds = append(cmds, m.cmdRefresh())
 		}
