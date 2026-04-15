@@ -118,7 +118,7 @@ Small, targeted code changes with no new runtime behaviour.
 - **TDD:** no new tests required; verify existing suite stays green
 
 ## Slice 12 — CoinGecko rate limiting
-STATUS: IN_REVIEW
+STATUS: DONE
 
 New runtime behaviour: the app must stay within the free-tier limit of ~30 req/min.
 

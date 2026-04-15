@@ -1,5 +1,5 @@
 ---
-status: in_review
+status: done
 branch: feat/012-coingecko-rate-limiting
 ---
 
