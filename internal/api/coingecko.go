@@ -96,6 +96,9 @@ func (c *HTTPClient) throttle(ctx context.Context) error {
 	elapsed := time.Since(c.lastRequestAt)
 	if elapsed < c.minInterval {
 		sleepDuration := c.minInterval - elapsed
+		// Record the intended wake time before releasing lock to prevent
+		// concurrent callers from calculating stale sleep durations.
+		c.lastRequestAt = time.Now().Add(sleepDuration)
 		c.mu.Unlock()
 
 		timer := time.NewTimer(sleepDuration)
@@ -105,9 +108,6 @@ func (c *HTTPClient) throttle(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-timer.C:
-			c.mu.Lock()
-			c.lastRequestAt = time.Now()
-			c.mu.Unlock()
 			return nil
 		}
 	}
@@ -160,7 +160,10 @@ func (c *HTTPClient) FetchMarkets(ctx context.Context, limit int) ([]store.Coin,
 	}()
 
 	if resp.StatusCode == http.StatusTooManyRequests {
-		body, _ := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, fmt.Errorf("fetching markets: %d (failed to read response body: %w)", resp.StatusCode, readErr)
+		}
 		rle := &RateLimitError{
 			Body: string(body),
 		}
@@ -238,7 +241,10 @@ func (c *HTTPClient) FetchPrices(ctx context.Context, apiIDs []string) (map[stri
 	}()
 
 	if resp.StatusCode == http.StatusTooManyRequests {
-		body, _ := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, fmt.Errorf("fetching prices: %d (failed to read response body: %w)", resp.StatusCode, readErr)
+		}
 		rle := &RateLimitError{
 			Body: string(body),
 		}
