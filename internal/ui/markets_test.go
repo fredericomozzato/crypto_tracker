@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fredericomozzato/crypto_tracker/internal/api"
 	"github.com/fredericomozzato/crypto_tracker/internal/store"
 )
 
@@ -651,4 +652,238 @@ func executeInitBatchForMarkets(t *testing.T, m MarketsModel) tea.Msg {
 	}
 	t.Fatal("no coinsLoadedMsg or errMsg in batch")
 	return nil
+}
+
+// Rate limiting tests
+
+func TestMarketsRateLimitedErrMsg(t *testing.T) {
+	stub := &StubStore{}
+	apiStub := &StubAPI{}
+	m := NewMarketsModel(testCtx, stub, apiStub)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+
+	rle := &api.RateLimitError{Body: "rate limit exceeded"}
+	msg := errMsg{err: rle}
+	updated, _ := m.update(msg)
+
+	if updated.refreshAttempts != 1 {
+		t.Errorf("expected refreshAttempts 1, got %d", updated.refreshAttempts)
+	}
+
+	if updated.rateLimitedUntil.IsZero() {
+		t.Error("expected rateLimitedUntil to be set")
+	}
+
+	if time.Until(updated.rateLimitedUntil) <= 0 {
+		t.Error("expected rateLimitedUntil to be in the future")
+	}
+}
+
+func TestMarketsRateLimitedStatusBar(t *testing.T) {
+	stub := &StubStore{}
+	apiStub := &StubAPI{}
+	m := NewMarketsModel(testCtx, stub, apiStub)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.rateLimitedUntil = time.Now().Add(30 * time.Second)
+
+	right := m.statusRight()
+	if !strings.HasPrefix(right, "Rate limited") {
+		t.Errorf("expected statusRight to start with 'Rate limited', got %q", right)
+	}
+
+	if !strings.Contains(right, "30s") && !strings.Contains(right, "29s") && !strings.Contains(right, "28s") {
+		t.Errorf("expected statusRight to contain retry seconds, got %q", right)
+	}
+}
+
+func TestMarketsRateLimitedStatusBarNoLongerLimited(t *testing.T) {
+	stub := &StubStore{}
+	apiStub := &StubAPI{}
+	m := NewMarketsModel(testCtx, stub, apiStub)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now()
+	m.rateLimitedUntil = time.Now().Add(-30 * time.Second) // In the past
+
+	right := m.statusRight()
+	if right != "Synced" {
+		t.Errorf("expected statusRight 'Synced', got %q", right)
+	}
+}
+
+func TestMarketsRefreshBlockedWhenRateLimited(t *testing.T) {
+	stub := &StubStore{}
+	apiStub := &StubAPI{}
+	m := NewMarketsModel(testCtx, stub, apiStub)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.rateLimitedUntil = time.Now().Add(30 * time.Second)
+	m.refreshing = false
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
+	updated, cmd := m.update(msg)
+
+	if cmd != nil {
+		t.Error("expected nil cmd when rate-limited")
+	}
+
+	if updated.refreshing {
+		t.Error("expected refreshing to stay false")
+	}
+}
+
+func TestMarketsAutoRefreshBlockedWhenRateLimited(t *testing.T) {
+	stub := &StubStore{}
+	apiStub := &StubAPI{}
+	m := NewMarketsModel(testCtx, stub, apiStub)
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now().Add(-61 * time.Second)
+	m.refreshing = false
+	m.rateLimitedUntil = time.Now().Add(30 * time.Second)
+
+	updated, cmd := m.update(tickMsg(time.Now()))
+
+	if updated.refreshing {
+		t.Error("expected refreshing to stay false when rate-limited")
+	}
+
+	// cmdTick is always returned, but no refresh cmd should be in the batch
+	if cmd == nil {
+		t.Error("expected non-nil cmd from tickMsg (ticker should be re-armed)")
+	}
+}
+
+func TestMarketsAutoRefreshResumesAfterCooldown(t *testing.T) {
+	stub := &StubStore{coins: threeCoins()}
+	apiStub := &StubAPI{prices: map[string]float64{"coin-1": 100.0}}
+	m := NewMarketsModel(testCtx, stub, apiStub)
+	m.coins = threeCoins()
+	m.lastRefreshed = time.Now().Add(-61 * time.Second)
+	m.refreshing = false
+	m.rateLimitedUntil = time.Now().Add(-1 * time.Second) // Expired
+
+	updated, cmd := m.update(tickMsg(time.Now()))
+
+	if !updated.refreshing {
+		t.Error("expected refreshing to be true when cooldown expired")
+	}
+
+	if cmd == nil {
+		t.Error("expected non-nil cmd when refresh fires")
+	}
+}
+
+func TestMarketsExponentialBackoffOnRepeated429(t *testing.T) {
+	stub := &StubStore{}
+	apiStub := &StubAPI{}
+	m := NewMarketsModel(testCtx, stub, apiStub)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+
+	rle := &api.RateLimitError{Body: "rate limit exceeded"}
+	var prevUntil time.Time
+
+	for i := 0; i < 5; i++ {
+		beforeUpdate := time.Now()
+		updated, _ := m.update(errMsg{err: rle})
+
+		cooldown := updated.rateLimitedUntil.Sub(beforeUpdate)
+
+		switch i {
+		case 0:
+			if cooldown < 59*time.Second || cooldown > 61*time.Second {
+				t.Errorf("attempt 1: expected cooldown ~60s, got %v", cooldown)
+			}
+		case 1:
+			if cooldown < 119*time.Second || cooldown > 121*time.Second {
+				t.Errorf("attempt 2: expected cooldown ~120s, got %v", cooldown)
+			}
+		case 2:
+			if cooldown < 239*time.Second || cooldown > 241*time.Second {
+				t.Errorf("attempt 3: expected cooldown ~240s, got %v", cooldown)
+			}
+		case 3:
+			if cooldown < 299*time.Second || cooldown > 301*time.Second {
+				t.Errorf("attempt 4: expected cooldown capped at ~300s, got %v", cooldown)
+			}
+		case 4:
+			// Should still be capped at 300s
+			if cooldown < 299*time.Second || cooldown > 301*time.Second {
+				t.Errorf("attempt 5: expected cooldown capped at ~300s, got %v", cooldown)
+			}
+		}
+
+		// Update m for next iteration, simulating time passing
+		m = updated
+		m.rateLimitedUntil = time.Now() // Reset so next error triggers new calculation
+
+		if !prevUntil.IsZero() && m.rateLimitedUntil.Before(prevUntil) {
+			// This is expected since we're resetting, just verifying the pattern
+		}
+		prevUntil = m.rateLimitedUntil
+	}
+}
+
+func TestMarketsBackoffResetOnSuccess(t *testing.T) {
+	stub := &StubStore{coins: threeCoins()}
+	apiStub := &StubAPI{}
+	m := NewMarketsModel(testCtx, stub, apiStub)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.refreshing = true
+	m.refreshAttempts = 3
+	m.rateLimitedUntil = time.Now().Add(30 * time.Second)
+
+	updated, _ := m.update(pricesUpdatedMsg{coins: threeCoins()})
+
+	if updated.refreshAttempts != 0 {
+		t.Errorf("expected refreshAttempts reset to 0, got %d", updated.refreshAttempts)
+	}
+
+	if !updated.rateLimitedUntil.IsZero() {
+		t.Errorf("expected rateLimitedUntil to be zero time, got %v", updated.rateLimitedUntil)
+	}
+}
+
+func TestMarketsNonRateLimitErrorDoesNotSetRateLimitedUntil(t *testing.T) {
+	stub := &StubStore{}
+	apiStub := &StubAPI{}
+	m := NewMarketsModel(testCtx, stub, apiStub)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+
+	msg := errMsg{err: errors.New("network failed")}
+	updated, _ := m.update(msg)
+
+	if !updated.rateLimitedUntil.IsZero() {
+		t.Errorf("expected rateLimitedUntil to remain zero, got %v", updated.rateLimitedUntil)
+	}
+
+	if updated.lastErr != "network failed" {
+		t.Errorf("expected lastErr 'network failed', got %q", updated.lastErr)
+	}
+}
+
+func TestMarketsRateLimitedStatusBarStyled(t *testing.T) {
+	stub := &StubStore{}
+	apiStub := &StubAPI{}
+	m := NewMarketsModel(testCtx, stub, apiStub)
+	m.width = 100
+	m.height = 30
+	m.coins = threeCoins()
+	m.rateLimitedUntil = time.Now().Add(30 * time.Second)
+
+	view := m.View()
+	if !strings.Contains(view, "Rate limited") {
+		t.Errorf("expected view to contain 'Rate limited', got %q", view)
+	}
 }
