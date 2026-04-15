@@ -3,10 +3,13 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestFetchMarketsSuccess(t *testing.T) {
@@ -330,5 +333,251 @@ func TestFetchPricesWithAPIKey(t *testing.T) {
 
 	if prices["bitcoin"] != 67000.00 {
 		t.Errorf("expected bitcoin price 67000.00, got %f", prices["bitcoin"])
+	}
+}
+
+// Rate limiting tests
+
+func TestThrottleEnforcesMinimumInterval(t *testing.T) {
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		response := []map[string]interface{}{
+			{
+				"id":            "bitcoin",
+				"symbol":        "btc",
+				"name":          "Bitcoin",
+				"current_price": 67000.00,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	minInterval := 50 * time.Millisecond
+	client := newHTTPClientWithInterval("", minInterval, server.URL)
+
+	// First request
+	start := time.Now()
+	_, err := client.FetchMarkets(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error on first call: %v", err)
+	}
+
+	// Second request should be throttled
+	_, err = client.FetchMarkets(context.Background(), 1)
+	elapsed := time.Since(start)
+	if err != nil {
+		t.Fatalf("unexpected error on second call: %v", err)
+	}
+
+	if elapsed < minInterval {
+		t.Errorf("expected second call to be throttled for at least %v, but took %v", minInterval, elapsed)
+	}
+
+	if requestCount != 2 {
+		t.Errorf("expected 2 requests, got %d", requestCount)
+	}
+}
+
+func TestThrottleWithContextCancellation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := []map[string]interface{}{}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	minInterval := 100 * time.Millisecond
+	client := newHTTPClientWithInterval("", minInterval, server.URL)
+
+	// First request to set lastRequestAt
+	_, _ = client.FetchMarkets(context.Background(), 1)
+
+	// Second request with cancelled context
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		cancel()
+	}()
+
+	_, err := client.FetchMarkets(ctx, 1)
+	if err == nil {
+		t.Fatal("expected error for cancelled context, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "context canceled") {
+		t.Errorf("expected context canceled error, got: %s", err.Error())
+	}
+}
+
+func TestFetchMarketsRateLimit429(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte("rate limit exceeded"))
+	}))
+	defer server.Close()
+
+	client := newHTTPClientWithInterval("", 10*time.Millisecond, server.URL)
+
+	_, err := client.FetchMarkets(context.Background(), 1)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	if !IsRateLimitError(err) {
+		t.Errorf("expected IsRateLimitError to return true, got false")
+	}
+
+	var rle *RateLimitError
+	if !errors.As(err, &rle) {
+		t.Fatalf("expected error to be *RateLimitError, got %T", err)
+	}
+
+	if !strings.Contains(rle.Body, "rate limit exceeded") {
+		t.Errorf("expected Body to contain 'rate limit exceeded', got %q", rle.Body)
+	}
+}
+
+func TestFetchPricesRateLimit429(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte("API rate limit exceeded"))
+	}))
+	defer server.Close()
+
+	client := newHTTPClientWithInterval("", 10*time.Millisecond, server.URL)
+
+	_, err := client.FetchPrices(context.Background(), []string{"bitcoin"})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	if !IsRateLimitError(err) {
+		t.Errorf("expected IsRateLimitError to return true, got false")
+	}
+
+	var rle *RateLimitError
+	if !errors.As(err, &rle) {
+		t.Fatalf("expected error to be *RateLimitError, got %T", err)
+	}
+
+	if !strings.Contains(rle.Body, "API rate limit exceeded") {
+		t.Errorf("expected Body to contain 'API rate limit exceeded', got %q", rle.Body)
+	}
+}
+
+func TestFetchMarkets429WithRetryAfterHeader(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "30")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte("rate limit exceeded"))
+	}))
+	defer server.Close()
+
+	client := newHTTPClientWithInterval("", 10*time.Millisecond, server.URL)
+
+	_, err := client.FetchMarkets(context.Background(), 1)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	var rle *RateLimitError
+	if !errors.As(err, &rle) {
+		t.Fatalf("expected error to be *RateLimitError, got %T", err)
+	}
+
+	if rle.RetryAfter != 30*time.Second {
+		t.Errorf("expected RetryAfter 30s, got %v", rle.RetryAfter)
+	}
+}
+
+func TestIsRateLimitError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "RateLimitError returns true",
+			err:      &RateLimitError{Body: "rate limited"},
+			expected: true,
+		},
+		{
+			name:     "Regular error returns false",
+			err:      errors.New("network error"),
+			expected: false,
+		},
+		{
+			name:     "Nil error returns false",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "Wrapped RateLimitError returns true",
+			err:      fmt.Errorf("wrapped: %w", &RateLimitError{Body: "rate limited"}),
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsRateLimitError(tt.err)
+			if got != tt.expected {
+				t.Errorf("IsRateLimitError() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestRetryAfterFromError(t *testing.T) {
+	tests := []struct {
+		name            string
+		err             error
+		defaultDuration time.Duration
+		expected        time.Duration
+	}{
+		{
+			name:            "RateLimitError with RetryAfter set",
+			err:             &RateLimitError{Body: "rate limited", RetryAfter: 30 * time.Second},
+			defaultDuration: 60 * time.Second,
+			expected:        30 * time.Second,
+		},
+		{
+			name:            "RateLimitError with zero RetryAfter uses default",
+			err:             &RateLimitError{Body: "rate limited"},
+			defaultDuration: 60 * time.Second,
+			expected:        60 * time.Second,
+		},
+		{
+			name:            "Non-RateLimitError returns default",
+			err:             errors.New("network error"),
+			defaultDuration: 60 * time.Second,
+			expected:        60 * time.Second,
+		},
+		{
+			name:            "Nil error returns default",
+			err:             nil,
+			defaultDuration: 60 * time.Second,
+			expected:        60 * time.Second,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := RetryAfterFromError(tt.err, tt.defaultDuration)
+			if got != tt.expected {
+				t.Errorf("RetryAfterFromError() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestNewHTTPClientDefaultMinInterval(t *testing.T) {
+	client := NewHTTPClient("")
+
+	if client.minInterval != 2*time.Second {
+		t.Errorf("expected minInterval to be 2s, got %v", client.minInterval)
 	}
 }

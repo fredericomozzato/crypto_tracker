@@ -16,17 +16,19 @@ import (
 
 // MarketsModel manages the Markets tab: coin list, auto-refresh, cursor, status bar.
 type MarketsModel struct {
-	width         int
-	height        int
-	ctx           context.Context
-	store         store.Store
-	client        api.CoinGeckoClient
-	coins         []store.Coin
-	lastErr       string
-	refreshing    bool
-	lastRefreshed time.Time
-	cursor        int
-	offset        int
+	width            int
+	height           int
+	ctx              context.Context
+	store            store.Store
+	client           api.CoinGeckoClient
+	coins            []store.Coin
+	lastErr          string
+	refreshing       bool
+	lastRefreshed    time.Time
+	cursor           int
+	offset           int
+	rateLimitedUntil time.Time // time at which rate-limit cooldown expires
+	refreshAttempts  int       // consecutive rate-limit errors (for backoff)
 }
 
 // coinsLoadedMsg is sent when coins are successfully loaded from the API.
@@ -112,7 +114,7 @@ func (m MarketsModel) update(msg tea.Msg) (MarketsModel, tea.Cmd) {
 			for _, r := range msg.Runes {
 				switch r {
 				case 'r':
-					if !m.refreshing && len(m.coins) > 0 {
+					if !m.refreshing && time.Now().After(m.rateLimitedUntil) && len(m.coins) > 0 {
 						m.refreshing = true
 						return m, m.cmdRefresh()
 					}
@@ -140,7 +142,9 @@ func (m MarketsModel) update(msg tea.Msg) (MarketsModel, tea.Cmd) {
 		m.height = msg.Height
 	case tickMsg:
 		cmds := []tea.Cmd{cmdTick()}
-		if !m.refreshing && len(m.coins) > 0 && time.Since(m.lastRefreshed) >= refreshInterval {
+		now := time.Now()
+		canRefresh := !m.refreshing && len(m.coins) > 0 && now.Sub(m.lastRefreshed) >= refreshInterval && now.After(m.rateLimitedUntil)
+		if canRefresh {
 			m.refreshing = true
 			cmds = append(cmds, m.cmdRefresh())
 		}
@@ -160,9 +164,23 @@ func (m MarketsModel) update(msg tea.Msg) (MarketsModel, tea.Cmd) {
 		m.refreshing = false
 		m.lastErr = ""
 		m.lastRefreshed = time.Now()
+		m.refreshAttempts = 0            // reset backoff on success
+		m.rateLimitedUntil = time.Time{} // clear rate-limit state
 	case errMsg:
-		m.lastErr = msg.err.Error()
 		m.refreshing = false
+		if api.IsRateLimitError(msg.err) {
+			backoff := api.RetryAfterFromError(msg.err, api.DefaultRetryAfter)
+			multiplier := 1 << min(m.refreshAttempts, 3) // 1, 2, 4, 8 (capped)
+			cooldown := backoff * time.Duration(multiplier)
+			if cooldown > 5*time.Minute {
+				cooldown = 5 * time.Minute
+			}
+			m.rateLimitedUntil = time.Now().Add(cooldown)
+			m.refreshAttempts++
+			m.lastErr = "" // status bar shows rate-limit state, not raw error
+		} else {
+			m.lastErr = msg.err.Error()
+		}
 	}
 
 	return m, nil
@@ -269,8 +287,13 @@ func (m MarketsModel) View() string {
 
 // statusRight returns the right-hand portion of the status bar.
 func (m MarketsModel) statusRight() string {
+	now := time.Now()
 	if m.refreshing {
 		return "Refreshing"
+	}
+	if now.Before(m.rateLimitedUntil) {
+		secs := int(time.Until(m.rateLimitedUntil).Seconds())
+		return fmt.Sprintf("Rate limited — retry in %ds", secs)
 	}
 	if m.lastErr != "" {
 		return "error: " + m.lastErr
@@ -278,7 +301,7 @@ func (m MarketsModel) statusRight() string {
 	if m.lastRefreshed.IsZero() {
 		return "loading..."
 	}
-	if time.Since(m.lastRefreshed) > staleThreshold {
+	if now.Sub(m.lastRefreshed) > staleThreshold {
 		return "Stale"
 	}
 	return "Synced"
@@ -295,13 +318,17 @@ func (m MarketsModel) renderStatusBar() string {
 	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
 	yellowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
 
+	rateLimitStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF8C00")) // dark orange
+
 	var rightStyled string
-	switch rightContent {
-	case "Synced":
+	switch {
+	case strings.HasPrefix(rightContent, "Rate limited"):
+		rightStyled = rateLimitStyle.Render(rightContent)
+	case rightContent == "Synced":
 		rightStyled = greenStyle.Render(rightContent)
-	case "Stale":
+	case rightContent == "Stale":
 		rightStyled = yellowStyle.Render(rightContent)
-	case "error: " + m.lastErr:
+	case strings.HasPrefix(rightContent, "error:"):
 		rightStyled = errStyle.Render(rightContent)
 	default:
 		rightStyled = grayStyle.Render(rightContent)
