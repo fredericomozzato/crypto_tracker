@@ -63,4 +63,9 @@ type Store interface {
 	// new in Slice 9
 	RenamePortfolio(ctx context.Context, id int64, name string) error
 	DeletePortfolio(ctx context.Context, id int64) error
+
+	// settings & currency support
+	GetSetting(ctx context.Context, key string) (string, error)
+	GetCachedCurrencies(ctx context.Context) ([]string, error)
+	UpsertCurrencies(ctx context.Context, codes []string) error
 }

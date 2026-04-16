@@ -22,3 +22,13 @@ CREATE TABLE IF NOT EXISTS holdings (
     amount       REAL    NOT NULL,
     UNIQUE(portfolio_id, coin_id)
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS supported_currencies (
+    code       TEXT    PRIMARY KEY,
+    fetched_at INTEGER NOT NULL DEFAULT 0
+);

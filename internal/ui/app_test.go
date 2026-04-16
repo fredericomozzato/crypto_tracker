@@ -44,6 +44,25 @@ func TestAppModelViewContainsTabBar(t *testing.T) {
 	if !strings.Contains(view, "Portfolio") {
 		t.Errorf("expected view to contain 'Portfolio', got %q", view)
 	}
+	if !strings.Contains(view, "Settings") {
+		t.Errorf("expected view to contain 'Settings', got %q", view)
+	}
+}
+
+func TestThreeKeySelectsSettings(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'3'}}
+	updated, _ := m.Update(msg)
+	model := updated.(AppModel)
+
+	if model.activeTab != tabSettings {
+		t.Errorf("expected '3' to select Settings (%d), got %d", tabSettings, model.activeTab)
+	}
 }
 
 func TestQuitOnQ(t *testing.T) {
@@ -100,11 +119,28 @@ func TestTabKeyAdvancesToPortfolio(t *testing.T) {
 	}
 }
 
-func TestTabKeyWrapsToMarkets(t *testing.T) {
+func TestTabKeyFromPortfolioGoesToSettings(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
 	m := NewAppModel(context.Background(), stub, api)
 	m.activeTab = tabPortfolio
+	m.width = 100
+	m.height = 30
+
+	msg := tea.KeyMsg{Type: tea.KeyTab}
+	updated, _ := m.Update(msg)
+	model := updated.(AppModel)
+
+	if model.activeTab != tabSettings {
+		t.Errorf("expected Tab from Portfolio to go to Settings (%d), got %d", tabSettings, model.activeTab)
+	}
+}
+
+func TestTabKeyWrapsToMarkets(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.activeTab = tabSettings
 	m.width = 100
 	m.height = 30
 
@@ -134,7 +170,7 @@ func TestShiftTabGoesBackToMarkets(t *testing.T) {
 	}
 }
 
-func TestShiftTabWrapsToPortfolio(t *testing.T) {
+func TestShiftTabWrapsToSettings(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
 	m := NewAppModel(context.Background(), stub, api)
@@ -146,8 +182,8 @@ func TestShiftTabWrapsToPortfolio(t *testing.T) {
 	updated, _ := m.Update(msg)
 	model := updated.(AppModel)
 
-	if model.activeTab != tabPortfolio {
-		t.Errorf("expected Shift+Tab to wrap to Portfolio (%d), got %d", tabPortfolio, model.activeTab)
+	if model.activeTab != tabSettings {
+		t.Errorf("expected Shift+Tab from Markets to wrap to Settings (%d), got %d", tabSettings, model.activeTab)
 	}
 }
 

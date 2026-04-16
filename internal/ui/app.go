@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -14,9 +15,10 @@ type tab int
 const (
 	tabMarkets tab = iota
 	tabPortfolio
+	tabSettings
 )
 
-const tabCount = 2
+const tabCount = 3
 
 func tabBarActiveStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
@@ -38,6 +40,7 @@ type AppModel struct {
 	activeTab tab
 	markets   MarketsModel
 	portfolio PortfolioModel
+	settings  SettingsModel
 }
 
 // NewAppModel creates a new AppModel with the given dependencies.
@@ -46,12 +49,13 @@ func NewAppModel(ctx context.Context, s store.Store, c api.CoinGeckoClient) AppM
 		activeTab: tabMarkets,
 		markets:   NewMarketsModel(ctx, s, c),
 		portfolio: NewPortfolioModel(ctx, s),
+		settings:  NewSettingsModel(ctx, s),
 	}
 }
 
-// Init delegates to both children models' Init commands.
+// Init delegates to all children models' Init commands.
 func (m AppModel) Init() tea.Cmd {
-	return tea.Batch(m.markets.Init(), m.portfolio.Init())
+	return tea.Batch(m.markets.Init(), m.portfolio.Init(), m.settings.Init())
 }
 
 // Update handles WindowSizeMsg (propagated to children with height-1),
@@ -65,10 +69,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		childMsg := tea.WindowSizeMsg{Width: msg.Width, Height: msg.Height - 1}
-		var cmd1, cmd2 tea.Cmd
+		var cmd1, cmd2, cmd3 tea.Cmd
 		m.markets, cmd1 = m.markets.update(childMsg)
 		m.portfolio, cmd2 = m.portfolio.update(childMsg)
-		return m, tea.Batch(cmd1, cmd2)
+		m.settings, cmd3 = m.settings.update(childMsg)
+		return m, tea.Batch(cmd1, cmd2, cmd3)
 
 	case tea.KeyMsg:
 		if msg.Type == tea.KeyCtrlC {
@@ -93,22 +98,23 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					case '2':
 						m.activeTab = tabPortfolio
 						return m, nil
+					case '3':
+						m.activeTab = tabSettings
+						return m, nil
 					}
 				}
 			}
 		}
 	}
 
-	// Background messages (non-key, non-resize) are always forwarded to both
-	// children via tea.Batch. This ensures that async responses like
-	// coinsLoadedMsg and pricesUpdatedMsg reach whichever tab issued the
-	// command, even if the user has since switched tabs. Without this
-	// broadcast, responses would be silently dropped when the inactive tab
-	// doesn't match the issuing tab.
-	var cmd1, cmd2 tea.Cmd
+	// Background messages (non-key, non-resize) are always forwarded to all
+	// children via tea.Batch. This ensures that async responses reach whichever
+	// tab issued the command, even if the user has since switched tabs.
+	var cmd1, cmd2, cmd3 tea.Cmd
 	m.markets, cmd1 = m.markets.update(msg)
 	m.portfolio, cmd2 = m.portfolio.update(msg)
-	return m, tea.Batch(cmd1, cmd2)
+	m.settings, cmd3 = m.settings.update(msg)
+	return m, tea.Batch(cmd1, cmd2, cmd3)
 }
 
 // View renders the tab bar + active child view.
@@ -119,27 +125,28 @@ func (m AppModel) View() string {
 		return tabBar + "\n" + m.markets.View()
 	case tabPortfolio:
 		return tabBar + "\n" + m.portfolio.View()
+	case tabSettings:
+		return tabBar + "\n" + m.settings.View()
 	}
 	return tabBar
 }
 
-// renderTabBar renders "[ Markets ]  [ Portfolio ]" with active tab highlighted.
+// renderTabBar renders tab labels with the active tab highlighted.
 func (m AppModel) renderTabBar() string {
 	inactiveStyle := tabBarInactiveStyle()
 	activeStyle := tabBarActiveStyle()
 
-	marketsLabel := " Markets "
-	portfolioLabel := " Portfolio "
-
-	if m.activeTab == tabMarkets {
-		marketsLabel = activeStyle.Render(marketsLabel)
-		portfolioLabel = inactiveStyle.Render(portfolioLabel)
-	} else {
-		marketsLabel = inactiveStyle.Render(marketsLabel)
-		portfolioLabel = activeStyle.Render(portfolioLabel)
+	labels := []string{" Markets ", " Portfolio ", " Settings "}
+	rendered := make([]string, len(labels))
+	for i, label := range labels {
+		if m.activeTab == tab(i) {
+			rendered[i] = activeStyle.Render(label)
+		} else {
+			rendered[i] = inactiveStyle.Render(label)
+		}
 	}
 
-	return marketsLabel + "  " + portfolioLabel
+	return strings.Join(rendered, "  ")
 }
 
 // activeInputActive returns whether the currently active child has a text input focused.
@@ -149,6 +156,8 @@ func (m AppModel) activeInputActive() bool {
 		return m.markets.InputActive()
 	case tabPortfolio:
 		return m.portfolio.InputActive()
+	case tabSettings:
+		return m.settings.InputActive()
 	}
 	return false
 }

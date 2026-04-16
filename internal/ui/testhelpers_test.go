@@ -104,6 +104,21 @@ func (s *StubStore) DeletePortfolio(ctx context.Context, id int64) error {
 	return nil
 }
 
+func (s *StubStore) GetSetting(_ context.Context, _ string) (string, error) {
+	return "", s.err
+}
+
+func (s *StubStore) GetCachedCurrencies(_ context.Context) ([]string, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return []string{}, nil
+}
+
+func (s *StubStore) UpsertCurrencies(_ context.Context, _ []string) error {
+	return s.err
+}
+
 // StubAPI implements api.CoinGeckoClient for testing
 type StubAPI struct {
 	coins             []store.Coin
@@ -125,6 +140,13 @@ func (a *StubAPI) FetchPrices(ctx context.Context, apiIDs []string) (map[string]
 		return nil, a.err
 	}
 	return a.prices, nil
+}
+
+func (a *StubAPI) FetchSupportedCurrencies(_ context.Context) ([]string, error) {
+	if a.err != nil {
+		return nil, a.err
+	}
+	return []string{}, nil
 }
 
 func threeCoins() []store.Coin {

@@ -207,6 +207,83 @@ func (s *SQLiteStore) DeletePortfolio(ctx context.Context, id int64) error {
 	return nil
 }
 
+// GetSetting returns the value for a settings key.
+// Returns an empty string (no error) if the key does not exist.
+func (s *SQLiteStore) GetSetting(ctx context.Context, key string) (string, error) {
+	var value string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT value FROM settings WHERE key = ?`, key,
+	).Scan(&value)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("getting setting %q: %w", key, err)
+	}
+	return value, nil
+}
+
+// GetCachedCurrencies returns all supported currency codes stored in the local cache,
+// ordered alphabetically.
+func (s *SQLiteStore) GetCachedCurrencies(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT code FROM supported_currencies ORDER BY code`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying cached currencies: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	codes := make([]string, 0)
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			return nil, fmt.Errorf("scanning currency code: %w", err)
+		}
+		codes = append(codes, code)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating currency codes: %w", err)
+	}
+	return codes, nil
+}
+
+// UpsertCurrencies stores a list of supported currency codes, updating fetched_at
+// for any that already exist.
+func (s *SQLiteStore) UpsertCurrencies(ctx context.Context, codes []string) error {
+	if len(codes) == 0 {
+		return nil
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO supported_currencies (code, fetched_at)
+		VALUES (?, ?)
+		ON CONFLICT(code) DO UPDATE SET fetched_at = excluded.fetched_at
+	`)
+	if err != nil {
+		return fmt.Errorf("preparing currency upsert: %w", err)
+	}
+	defer func() { _ = stmt.Close() }()
+
+	now := time.Now().Unix()
+	for _, code := range codes {
+		if _, err := stmt.ExecContext(ctx, code, now); err != nil {
+			return fmt.Errorf("upserting currency %q: %w", code, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing currency upsert: %w", err)
+	}
+	return nil
+}
+
 // GetHoldingsForPortfolio returns all holdings for a portfolio joined with coin data.
 func (s *SQLiteStore) GetHoldingsForPortfolio(ctx context.Context, portfolioID int64) ([]HoldingRow, error) {
 	rows, err := s.db.QueryContext(ctx, `

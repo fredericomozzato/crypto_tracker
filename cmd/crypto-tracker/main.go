@@ -63,6 +63,20 @@ func realMain() int {
 	apiKey := os.Getenv("COINGECKO_API_KEY")
 	client := api.NewHTTPClient(apiKey)
 
+	// Warm the supported-currency cache if it is empty.
+	// This costs one API call on first launch (or after a DB reset) and makes
+	// the Settings tab immediately useful. A failure here is non-fatal.
+	codes, err := s.GetCachedCurrencies(ctx)
+	if err != nil {
+		slog.Error("checking currency cache", "error", err)
+	} else if len(codes) == 0 {
+		if fetched, fetchErr := client.FetchSupportedCurrencies(ctx); fetchErr != nil {
+			slog.Error("fetching supported currencies", "error", fetchErr)
+		} else if storeErr := s.UpsertCurrencies(ctx, fetched); storeErr != nil {
+			slog.Error("caching supported currencies", "error", storeErr)
+		}
+	}
+
 	// Create model with dependencies
 	model := ui.NewAppModel(ctx, s, client)
 
