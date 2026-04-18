@@ -14,6 +14,8 @@ type StubStore struct {
 	coins       []store.Coin
 	portfolios  []store.Portfolio
 	holdingRows []store.HoldingRow
+	currencies  []store.Currency
+	settings    map[string]string
 	err         error
 }
 
@@ -104,12 +106,52 @@ func (s *StubStore) DeletePortfolio(ctx context.Context, id int64) error {
 	return nil
 }
 
+func (s *StubStore) UpsertCurrencies(ctx context.Context, currencies []store.Currency) error {
+	if s.err != nil {
+		return s.err
+	}
+	s.currencies = currencies
+	return nil
+}
+
+func (s *StubStore) GetAllCurrencies(ctx context.Context) ([]store.Currency, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.currencies == nil {
+		return []store.Currency{}, nil
+	}
+	return s.currencies, nil
+}
+
+func (s *StubStore) GetSetting(ctx context.Context, key string) (string, error) {
+	if s.err != nil {
+		return "", s.err
+	}
+	if s.settings == nil {
+		return "", nil
+	}
+	return s.settings[key], nil
+}
+
+func (s *StubStore) SetSetting(ctx context.Context, key, value string) error {
+	if s.err != nil {
+		return s.err
+	}
+	if s.settings == nil {
+		s.settings = make(map[string]string)
+	}
+	s.settings[key] = value
+	return nil
+}
+
 // StubAPI implements api.CoinGeckoClient for testing
 type StubAPI struct {
-	coins             []store.Coin
-	prices            map[string]float64
-	err               error
-	fetchMarketsCalls []int
+	coins               []store.Coin
+	prices              map[string]float64
+	supportedCurrencies []string
+	err                 error
+	fetchMarketsCalls   []int
 }
 
 func (a *StubAPI) FetchMarkets(ctx context.Context, limit int) ([]store.Coin, error) {
@@ -125,6 +167,13 @@ func (a *StubAPI) FetchPrices(ctx context.Context, apiIDs []string) (map[string]
 		return nil, a.err
 	}
 	return a.prices, nil
+}
+
+func (a *StubAPI) FetchSupportedCurrencies(ctx context.Context) ([]string, error) {
+	if a.err != nil {
+		return nil, a.err
+	}
+	return a.supportedCurrencies, nil
 }
 
 func threeCoins() []store.Coin {
