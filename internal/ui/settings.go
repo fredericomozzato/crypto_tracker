@@ -286,13 +286,19 @@ func (m SettingsModel) viewBrowsing() string {
 		b.WriteString(errStyle.Render("Error: " + m.lastErr))
 	}
 
-	content := b.String()
+	// Pad to fill available height minus status bar
+	contentHeight := m.height - 2 // Account for borders
+	lines := strings.Split(b.String(), "\n")
+	for len(lines) < contentHeight {
+		lines = append(lines, "")
+	}
+	content := strings.Join(lines, "\n")
 
 	// Render with panel border for visual framing
 	accentColor := lipgloss.Color("#00FFFF")
 	panelStyle := lipgloss.NewStyle().
 		Width(m.width - 2).
-		Height(m.height - 2).
+		Height(contentHeight).
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(accentColor)
 
@@ -345,7 +351,12 @@ func (m SettingsModel) viewPicking(picking settingsPicking) string {
 		Padding(1, 2).
 		Render(b.String())
 
-	content := lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, dialog)
+	// Reserve 1 line for tab bar (already subtracted in AppModel) and 1 for status bar
+	placeHeight := m.height - 1
+	if placeHeight < 1 {
+		placeHeight = 1
+	}
+	content := lipgloss.Place(m.width, placeHeight, lipgloss.Center, lipgloss.Center, dialog)
 	return content + "\n" + m.renderStatusBar()
 }
 
