@@ -1,5 +1,7 @@
 package api
 
+import "sort"
+
 // FiatCurrencies is a hardcoded map of fiat currency codes to their display names.
 // These are filtered against the CoinGecko API response to determine which
 // currencies the app supports.
@@ -42,6 +44,7 @@ var FiatCurrencies = map[string]string{
 
 // FilterFiat returns the intersection of apiCodes with FiatCurrencies.
 // Only codes present in both the API response and our fiat map are returned.
+// Results are sorted alphabetically by currency code.
 func FilterFiat(apiCodes []string) []string {
 	result := make([]string, 0, len(apiCodes))
 	for _, code := range apiCodes {
@@ -49,5 +52,6 @@ func FilterFiat(apiCodes []string) []string {
 			result = append(result, code)
 		}
 	}
+	sort.Strings(result)
 	return result
 }

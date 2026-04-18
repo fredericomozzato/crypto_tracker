@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS holdings (
 );
 
 CREATE TABLE IF NOT EXISTS currencies (
-    code TEXT NOT NULL UNIQUE,
+    code TEXT PRIMARY KEY,
     name TEXT NOT NULL
 );
 

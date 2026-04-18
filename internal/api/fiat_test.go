@@ -14,8 +14,8 @@ func TestFilterFiatMatchesKnownCodes(t *testing.T) {
 		t.Fatalf("expected 3 fiat codes, got %d: %v", len(result), result)
 	}
 
-	// Result should be in order of appearance
-	expected := []string{"usd", "eur", "gbp"}
+	// Result should be sorted alphabetically
+	expected := []string{"eur", "gbp", "usd"}
 	for i, exp := range expected {
 		if result[i] != exp {
 			t.Errorf("position %d: expected %s, got %s", i, exp, result[i])

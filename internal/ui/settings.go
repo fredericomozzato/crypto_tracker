@@ -22,6 +22,7 @@ type (
 		all      []store.Currency
 		filtered []store.Currency
 		cursor   int
+		offset   int // viewport offset for scrolling
 	}
 )
 
@@ -71,7 +72,7 @@ func NewSettingsModel(ctx context.Context, s store.Store, c api.CoinGeckoClient)
 
 // Init returns the initial command to load settings data.
 func (m SettingsModel) Init() tea.Cmd {
-	return cmdLoadSettings(m.store)
+	return m.cmdLoadSettings()
 }
 
 // update is the internal update function that handles messages.
@@ -89,7 +90,7 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 
 	case settingsNeedFetchMsg:
 		m.loading = true
-		return m, cmdFetchCurrencies(m.client)
+		return m, m.cmdFetchCurrencies()
 
 	case currenciesFetchedMsg:
 		// Filter API codes against fiat map
@@ -101,7 +102,7 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 				Name: api.FiatCurrencies[code],
 			}
 		}
-		return m, cmdUpsertCurrencies(m.store, currencies)
+		return m, m.cmdUpsertCurrencies(currencies)
 
 	case currenciesUpsertedMsg:
 		m.currencies = msg.currencies
@@ -112,11 +113,16 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch mode := m.mode.(type) {
 		case settingsBrowsing:
-			if msg.Type == tea.KeyEnter {
+			switch msg.Type {
+			case tea.KeyEnter:
 				if len(m.currencies) == 0 {
 					return m, func() tea.Msg { return settingsNeedFetchMsg{} }
 				}
 				m.mode = m.makePickingMode(m.currencies)
+			case tea.KeyEscape:
+				// Return focus to tab bar - this is handled by AppModel
+				// The tab itself doesn't need to do anything special
+				return m, nil
 			}
 
 		case settingsPicking:
@@ -131,6 +137,22 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 				// No-op for Slice 13 - selection handled in Slice 14
 				return m, nil
 
+			case tea.KeyDown:
+				if picking.cursor < len(picking.filtered)-1 {
+					picking.cursor++
+				}
+				picking.adjustViewport(m.height)
+				m.mode = picking
+				return m, nil
+
+			case tea.KeyUp:
+				if picking.cursor > 0 {
+					picking.cursor--
+				}
+				picking.adjustViewport(m.height)
+				m.mode = picking
+				return m, nil
+
 			case tea.KeyRunes:
 				for _, r := range msg.Runes {
 					switch r {
@@ -138,17 +160,31 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 						if picking.cursor < len(picking.filtered)-1 {
 							picking.cursor++
 						}
+						picking.adjustViewport(m.height)
 						m.mode = picking
 						return m, nil
 					case 'k', 'K':
 						if picking.cursor > 0 {
 							picking.cursor--
 						}
+						picking.adjustViewport(m.height)
 						m.mode = picking
 						return m, nil
 					}
 				}
 				// Forward to filter input
+				var cmd tea.Cmd
+				picking.filter, cmd = picking.filter.Update(msg)
+				picking.filtered = filterCurrencies(picking.all, picking.filter.Value())
+				// Clamp cursor
+				if picking.cursor >= len(picking.filtered) && len(picking.filtered) > 0 {
+					picking.cursor = len(picking.filtered) - 1
+				}
+				m.mode = picking
+				return m, cmd
+
+			default:
+				// Forward all other keys (Backspace, Delete, etc.) to filter input
 				var cmd tea.Cmd
 				picking.filter, cmd = picking.filter.Update(msg)
 				picking.filtered = filterCurrencies(picking.all, picking.filter.Value())
@@ -176,6 +212,7 @@ func (m SettingsModel) makePickingMode(currencies []store.Currency) settingsPick
 		all:      currencies,
 		filtered: currencies,
 		cursor:   0,
+		offset:   0,
 	}
 }
 
@@ -195,6 +232,31 @@ func filterCurrencies(currencies []store.Currency, filter string) []store.Curren
 	return result
 }
 
+// adjustViewport updates offset so the cursor stays visible.
+// Reserves 4 lines for header, filter input, and status bar.
+func (p *settingsPicking) adjustViewport(height int) {
+	visibleRows := height - 4
+	if visibleRows < 1 {
+		visibleRows = 1
+	}
+	if p.cursor < p.offset {
+		p.offset = p.cursor
+	}
+	if p.cursor >= p.offset+visibleRows {
+		p.offset = p.cursor - visibleRows + 1
+	}
+	maxOffset := len(p.filtered) - visibleRows
+	if maxOffset < 0 {
+		maxOffset = 0
+	}
+	if p.offset > maxOffset {
+		p.offset = maxOffset
+	}
+	if p.offset < 0 {
+		p.offset = 0
+	}
+}
+
 // View renders the Settings tab content.
 func (m SettingsModel) View() string {
 	switch mode := m.mode.(type) {
@@ -209,7 +271,7 @@ func (m SettingsModel) View() string {
 
 func (m SettingsModel) viewBrowsing() string {
 	if m.loading {
-		return "Loading currencies…"
+		return "Loading currencies…\n" + m.renderStatusBar()
 	}
 
 	var b strings.Builder
@@ -220,9 +282,6 @@ func (m SettingsModel) viewBrowsing() string {
 		currencyName = name
 	}
 	_, _ = fmt.Fprintf(&b, "Base Currency: %s (%s)\n", strings.ToUpper(m.selectedCode), currencyName)
-	b.WriteString("\n")
-	b.WriteString("Press Enter to change currency\n")
-	b.WriteString("Press Tab to switch tabs, q to quit\n")
 
 	if m.lastErr != "" {
 		b.WriteString("\n")
@@ -230,7 +289,17 @@ func (m SettingsModel) viewBrowsing() string {
 		b.WriteString(errStyle.Render("Error: " + m.lastErr))
 	}
 
-	return b.String()
+	content := b.String()
+
+	// Render with panel border for visual framing
+	accentColor := lipgloss.Color("#00FFFF")
+	panelStyle := lipgloss.NewStyle().
+		Width(m.width - 2).
+		Height(m.height - 2).
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(accentColor)
+
+	return panelStyle.Render(content) + "\n" + m.renderStatusBar()
 }
 
 func (m SettingsModel) viewPicking(picking settingsPicking) string {
@@ -244,11 +313,22 @@ func (m SettingsModel) viewPicking(picking settingsPicking) string {
 	b.WriteString(picking.filter.View())
 	b.WriteString("\n\n")
 
-	// Currency list
+	// Currency list with viewport
 	if len(picking.filtered) == 0 {
 		b.WriteString("No currencies match your search.\n")
 	} else {
-		for i, c := range picking.filtered {
+		// Calculate visible range
+		visibleRows := m.height - 8 // Reserve space for header, filter, borders, status
+		if visibleRows < 1 {
+			visibleRows = 1
+		}
+		end := picking.offset + visibleRows
+		if end > len(picking.filtered) {
+			end = len(picking.filtered)
+		}
+
+		for i := picking.offset; i < end; i++ {
+			c := picking.filtered[i]
 			line := fmt.Sprintf("  %s - %s", strings.ToUpper(c.Code), c.Name)
 			if i == picking.cursor {
 				// Highlight selected
@@ -261,10 +341,31 @@ func (m SettingsModel) viewPicking(picking settingsPicking) string {
 		}
 	}
 
-	b.WriteString("\n")
-	b.WriteString("j/k to navigate, type to filter, Enter to select (disabled), Esc to cancel\n")
+	dialog := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Padding(1, 2).
+		Render(b.String())
 
-	return b.String()
+	content := lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, dialog)
+	return content + "\n" + m.renderStatusBar()
+}
+
+// renderStatusBar returns a status bar with keyboard hints.
+func (m SettingsModel) renderStatusBar() string {
+	var content string
+	switch m.mode.(type) {
+	case settingsBrowsing:
+		content = "Enter to change • Tab/1-3 switch tabs • Esc back to tabs • q quit"
+	case settingsPicking:
+		content = "j/k/↑/↓ navigate • type to filter • Esc cancel"
+	}
+
+	if m.lastErr != "" {
+		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
+		content += " • " + errStyle.Render("error: "+m.lastErr)
+	}
+
+	return content
 }
 
 // InputActive returns true when the currency picker is open.
@@ -274,14 +375,13 @@ func (m SettingsModel) InputActive() bool {
 }
 
 // cmdLoadSettings creates a command to load settings from the database.
-func cmdLoadSettings(s store.Store) tea.Cmd {
+func (m SettingsModel) cmdLoadSettings() tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
-		currencies, err := s.GetAllCurrencies(ctx)
+		currencies, err := m.store.GetAllCurrencies(m.ctx)
 		if err != nil {
 			return errMsg{err: err}
 		}
-		selected, err := s.GetSetting(ctx, "selected_currency")
+		selected, err := m.store.GetSetting(m.ctx, "selected_currency")
 		if err != nil {
 			return errMsg{err: err}
 		}
@@ -293,10 +393,9 @@ func cmdLoadSettings(s store.Store) tea.Cmd {
 }
 
 // cmdFetchCurrencies creates a command to fetch supported currencies from the API.
-func cmdFetchCurrencies(client api.CoinGeckoClient) tea.Cmd {
+func (m SettingsModel) cmdFetchCurrencies() tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
-		codes, err := client.FetchSupportedCurrencies(ctx)
+		codes, err := m.client.FetchSupportedCurrencies(m.ctx)
 		if err != nil {
 			return errMsg{err: err}
 		}
@@ -305,10 +404,9 @@ func cmdFetchCurrencies(client api.CoinGeckoClient) tea.Cmd {
 }
 
 // cmdUpsertCurrencies creates a command to persist currencies to the database.
-func cmdUpsertCurrencies(s store.Store, currencies []store.Currency) tea.Cmd {
+func (m SettingsModel) cmdUpsertCurrencies(currencies []store.Currency) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
-		if err := s.UpsertCurrencies(ctx, currencies); err != nil {
+		if err := m.store.UpsertCurrencies(m.ctx, currencies); err != nil {
 			return errMsg{err: err}
 		}
 		return currenciesUpsertedMsg{currencies: currencies}
