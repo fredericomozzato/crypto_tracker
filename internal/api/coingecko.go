@@ -49,6 +49,7 @@ func RetryAfterFromError(err error, defaultDuration time.Duration) time.Duration
 type CoinGeckoClient interface {
 	FetchMarkets(ctx context.Context, limit int) ([]store.Coin, error)
 	FetchPrices(ctx context.Context, apiIDs []string) (map[string]float64, error)
+	FetchSupportedCurrencies(ctx context.Context) ([]string, error)
 }
 
 // HTTPClient implements CoinGeckoClient using HTTP requests.
@@ -277,4 +278,51 @@ func (c *HTTPClient) FetchPrices(ctx context.Context, apiIDs []string) (map[stri
 	}
 
 	return prices, nil
+}
+
+// FetchSupportedCurrencies fetches the list of supported vs currencies from CoinGecko.
+func (c *HTTPClient) FetchSupportedCurrencies(ctx context.Context) ([]string, error) {
+	if err := c.throttle(ctx); err != nil {
+		return nil, err
+	}
+
+	u := c.baseURL + "/simple/supported_vs_currencies"
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	if c.apiKey != "" {
+		req.Header.Set("x-cg-demo-api-key", c.apiKey)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetching supported currencies: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, fmt.Errorf("fetching supported currencies: %d (failed to read response body: %w)", resp.StatusCode, readErr)
+		}
+		return nil, &RateLimitError{Body: string(body)}
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, fmt.Errorf("fetching supported currencies: %d (failed to read response body: %w)", resp.StatusCode, readErr)
+		}
+		return nil, fmt.Errorf("fetching supported currencies: %d %s", resp.StatusCode, string(body))
+	}
+
+	var codes []string
+	if err := json.NewDecoder(resp.Body).Decode(&codes); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	return codes, nil
 }
