@@ -22,3 +22,15 @@ CREATE TABLE IF NOT EXISTS holdings (
     amount       REAL    NOT NULL,
     UNIQUE(portfolio_id, coin_id)
 );
+
+CREATE TABLE IF NOT EXISTS currencies (
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT NOT NULL UNIQUE,
+    value TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO settings (key, value) VALUES ('selected_currency', 'usd');
