@@ -310,36 +310,24 @@ func (m MarketsModel) statusRight() string {
 // renderStatusBar returns a two-sided status bar with hints on the left and
 // sync status on the right.
 func (m MarketsModel) renderStatusBar() string {
-	leftContent := "j/k navigate • g/G top/bottom • r refresh • q quit"
-	rightContent := m.statusRight()
+	left := "j/k navigate • g/G top/bottom • r refresh • q quit"
+	return renderStatusBar(m.width, left, m.styledStatusRight())
+}
 
-	grayStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
-	errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF4444"))
-	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
-	yellowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
-
-	rateLimitStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF8C00")) // dark orange
-
-	var rightStyled string
+func (m MarketsModel) styledStatusRight() string {
+	right := m.statusRight()
 	switch {
-	case strings.HasPrefix(rightContent, "Rate limited"):
-		rightStyled = rateLimitStyle.Render(rightContent)
-	case rightContent == "Synced":
-		rightStyled = greenStyle.Render(rightContent)
-	case rightContent == "Stale":
-		rightStyled = yellowStyle.Render(rightContent)
-	case strings.HasPrefix(rightContent, "error:"):
-		rightStyled = errStyle.Render(rightContent)
+	case strings.HasPrefix(right, "Rate limited"):
+		return statusBarOrange.Render(right)
+	case right == "Synced":
+		return statusBarGreen.Render(right)
+	case right == "Stale":
+		return statusBarYellow.Render(right)
+	case strings.HasPrefix(right, "error:"):
+		return statusBarRed.Render(right)
 	default:
-		rightStyled = grayStyle.Render(rightContent)
+		return statusBarGray.Render(right)
 	}
-
-	leftStyled := grayStyle.Render(leftContent)
-	padding := m.width - lipgloss.Width(leftContent) - lipgloss.Width(rightContent)
-	if padding < 1 {
-		padding = 1
-	}
-	return leftStyled + strings.Repeat(" ", padding) + rightStyled
 }
 
 // moveCursor moves the cursor by delta and adjusts the viewport.

@@ -44,6 +44,12 @@ type HoldingRow struct {
 	Proportion  float64 // Value / portfolio_total * 100, computed via window function
 }
 
+// Currency represents a fiat currency with its code and display name.
+type Currency struct {
+	Code string
+	Name string
+}
+
 // Store defines the interface for cryptocurrency data persistence.
 type Store interface {
 	UpsertCoin(ctx context.Context, c Coin) error
@@ -63,4 +69,10 @@ type Store interface {
 	// new in Slice 9
 	RenamePortfolio(ctx context.Context, id int64, name string) error
 	DeletePortfolio(ctx context.Context, id int64) error
+
+	// new in Slice 13
+	UpsertCurrencies(ctx context.Context, currencies []Currency) error
+	GetAllCurrencies(ctx context.Context) ([]Currency, error)
+	GetSetting(ctx context.Context, key string) (string, error)
+	SetSetting(ctx context.Context, key, value string) error
 }

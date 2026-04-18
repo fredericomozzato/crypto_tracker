@@ -581,3 +581,123 @@ func TestNewHTTPClientDefaultMinInterval(t *testing.T) {
 		t.Errorf("expected minInterval to be 2s, got %v", client.minInterval)
 	}
 }
+
+func TestFetchSupportedCurrenciesSuccess(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := []string{"usd", "eur", "btc"}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	client := &HTTPClient{
+		httpClient: server.Client(),
+		baseURL:    server.URL,
+	}
+
+	codes, err := client.FetchSupportedCurrencies(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(codes) != 3 {
+		t.Fatalf("expected 3 codes, got %d", len(codes))
+	}
+
+	expected := []string{"usd", "eur", "btc"}
+	for i, exp := range expected {
+		if codes[i] != exp {
+			t.Errorf("position %d: expected %s, got %s", i, exp, codes[i])
+		}
+	}
+}
+
+func TestFetchSupportedCurrenciesWithAPIKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		apiKey := r.Header.Get("x-cg-demo-api-key")
+		if apiKey != "test-key" {
+			t.Errorf("expected API key 'test-key', got %s", apiKey)
+		}
+
+		response := []string{"usd"}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	client := &HTTPClient{
+		httpClient: server.Client(),
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+	}
+
+	_, err := client.FetchSupportedCurrencies(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestFetchSupportedCurrencies429(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte("rate limit exceeded"))
+	}))
+	defer server.Close()
+
+	client := newHTTPClientWithInterval("", 10*time.Millisecond, server.URL)
+
+	_, err := client.FetchSupportedCurrencies(context.Background())
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	if !IsRateLimitError(err) {
+		t.Errorf("expected IsRateLimitError to return true, got false")
+	}
+}
+
+func TestFetchSupportedCurrenciesNetworkError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hijacker, ok := w.(http.Hijacker)
+		if !ok {
+			t.Fatal("server doesn't support hijacking")
+		}
+		conn, _, err := hijacker.Hijack()
+		if err != nil {
+			t.Fatalf("failed to hijack connection: %v", err)
+		}
+		_ = conn.Close()
+	}))
+	defer server.Close()
+
+	client := &HTTPClient{
+		httpClient: server.Client(),
+		baseURL:    server.URL,
+	}
+
+	_, err := client.FetchSupportedCurrencies(context.Background())
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestFetchSupportedCurrenciesContextCancelled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	client := &HTTPClient{
+		httpClient: server.Client(),
+		baseURL:    server.URL,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := client.FetchSupportedCurrencies(ctx)
+	if err == nil {
+		t.Fatal("expected error for cancelled context, got nil")
+	}
+}

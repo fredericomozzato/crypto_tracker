@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -248,4 +249,83 @@ func (s *SQLiteStore) GetHoldingsForPortfolio(ctx context.Context, portfolioID i
 		return nil, fmt.Errorf("iterating holdings: %w", err)
 	}
 	return holdings, nil
+}
+
+// UpsertCurrencies inserts or updates currencies in a transaction.
+func (s *SQLiteStore) UpsertCurrencies(ctx context.Context, currencies []Currency) error {
+	if len(currencies) == 0 {
+		return nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO currencies (code, name) VALUES (?, ?)
+		ON CONFLICT(code) DO UPDATE SET name = excluded.name
+	`)
+	if err != nil {
+		return fmt.Errorf("preparing upsert statement: %w", err)
+	}
+	defer func() { _ = stmt.Close() }()
+
+	for _, c := range currencies {
+		if _, err := stmt.ExecContext(ctx, c.Code, c.Name); err != nil {
+			return fmt.Errorf("upserting currency %s: %w", c.Code, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
+	}
+	return nil
+}
+
+// GetAllCurrencies returns all currencies ordered by code.
+func (s *SQLiteStore) GetAllCurrencies(ctx context.Context) ([]Currency, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT code, name FROM currencies ORDER BY code ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("querying currencies: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	currencies := make([]Currency, 0)
+	for rows.Next() {
+		var c Currency
+		if err := rows.Scan(&c.Code, &c.Name); err != nil {
+			return nil, fmt.Errorf("scanning currency: %w", err)
+		}
+		currencies = append(currencies, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating currencies: %w", err)
+	}
+	return currencies, nil
+}
+
+// GetSetting returns a setting value or empty string if not found.
+func (s *SQLiteStore) GetSetting(ctx context.Context, key string) (string, error) {
+	var value string
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, key).Scan(&value)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("getting setting %q: %w", key, err)
+	}
+	return value, nil
+}
+
+// SetSetting upserts a setting value.
+func (s *SQLiteStore) SetSetting(ctx context.Context, key, value string) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO settings (key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value
+	`, key, value)
+	if err != nil {
+		return fmt.Errorf("setting %q: %w", key, err)
+	}
+	return nil
 }

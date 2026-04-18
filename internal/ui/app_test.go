@@ -104,7 +104,7 @@ func TestTabKeyWrapsToMarkets(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
 	m := NewAppModel(context.Background(), stub, api)
-	m.activeTab = tabPortfolio
+	m.activeTab = tabSettings
 	m.width = 100
 	m.height = 30
 
@@ -146,8 +146,8 @@ func TestShiftTabWrapsToPortfolio(t *testing.T) {
 	updated, _ := m.Update(msg)
 	model := updated.(AppModel)
 
-	if model.activeTab != tabPortfolio {
-		t.Errorf("expected Shift+Tab to wrap to Portfolio (%d), got %d", tabPortfolio, model.activeTab)
+	if model.activeTab != tabSettings {
+		t.Errorf("expected Shift+Tab to wrap to Settings (%d), got %d", tabSettings, model.activeTab)
 	}
 }
 
@@ -346,5 +346,134 @@ func TestPanelTitlesDisplayed(t *testing.T) {
 	// Check for right panel title
 	if !strings.Contains(view, "Holdings") {
 		t.Errorf("expected view to contain 'Holdings' title, got %q", view)
+	}
+}
+
+func TestThreeKeySelectsSettings(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'3'}}
+	updated, _ := m.Update(msg)
+	model := updated.(AppModel)
+
+	if model.activeTab != tabSettings {
+		t.Errorf("expected '3' to select Settings (%d), got %d", tabSettings, model.activeTab)
+	}
+}
+
+func TestTabBarShowsSettings(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	view := m.View()
+	if !strings.Contains(view, "Settings") {
+		t.Errorf("expected view to contain 'Settings', got %q", view)
+	}
+}
+
+func TestSettingsInputActiveSuppressesTabSwitch(t *testing.T) {
+	currencies := []store.Currency{
+		{Code: "usd", Name: "US Dollar"},
+	}
+	stub := &StubStore{currencies: currencies}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.activeTab = tabSettings
+	m.width = 100
+	m.height = 30
+
+	// Load currencies into settings
+	m.settings.currencies = currencies
+
+	// Open picker (Enter key)
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	updated, _ := m.Update(msg)
+	m = updated.(AppModel)
+
+	// Verify we're in picking mode
+	if !m.settings.InputActive() {
+		t.Fatal("expected settings picker to be active")
+	}
+
+	// Try to switch tabs with Tab - should be suppressed
+	msg = tea.KeyMsg{Type: tea.KeyTab}
+	updated, _ = m.Update(msg)
+	model := updated.(AppModel)
+
+	if model.activeTab != tabSettings {
+		t.Errorf("expected Tab to be suppressed when picker active, got tab %d", model.activeTab)
+	}
+}
+
+func TestTabCyclesThroughAllThreeTabs(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	// Tab from Markets -> Portfolio
+	m.activeTab = tabMarkets
+	msg := tea.KeyMsg{Type: tea.KeyTab}
+	updated, _ := m.Update(msg)
+	m = updated.(AppModel)
+	if m.activeTab != tabPortfolio {
+		t.Errorf("expected Tab to go Markets -> Portfolio, got %d", m.activeTab)
+	}
+
+	// Tab from Portfolio -> Settings
+	msg = tea.KeyMsg{Type: tea.KeyTab}
+	updated, _ = m.Update(msg)
+	m = updated.(AppModel)
+	if m.activeTab != tabSettings {
+		t.Errorf("expected Tab to go Portfolio -> Settings, got %d", m.activeTab)
+	}
+
+	// Tab from Settings -> Markets (wrap)
+	msg = tea.KeyMsg{Type: tea.KeyTab}
+	updated, _ = m.Update(msg)
+	m = updated.(AppModel)
+	if m.activeTab != tabMarkets {
+		t.Errorf("expected Tab to go Settings -> Markets (wrap), got %d", m.activeTab)
+	}
+}
+
+func TestShiftTabCyclesBackwards(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	// Shift+Tab from Markets -> Settings (wrap backwards)
+	m.activeTab = tabMarkets
+	msg := tea.KeyMsg{Type: tea.KeyShiftTab}
+	updated, _ := m.Update(msg)
+	m = updated.(AppModel)
+	if m.activeTab != tabSettings {
+		t.Errorf("expected Shift+Tab to go Markets -> Settings (wrap), got %d", m.activeTab)
+	}
+
+	// Shift+Tab from Settings -> Portfolio
+	msg = tea.KeyMsg{Type: tea.KeyShiftTab}
+	updated, _ = m.Update(msg)
+	m = updated.(AppModel)
+	if m.activeTab != tabPortfolio {
+		t.Errorf("expected Shift+Tab to go Settings -> Portfolio, got %d", m.activeTab)
+	}
+
+	// Shift+Tab from Portfolio -> Markets
+	msg = tea.KeyMsg{Type: tea.KeyShiftTab}
+	updated, _ = m.Update(msg)
+	m = updated.(AppModel)
+	if m.activeTab != tabMarkets {
+		t.Errorf("expected Shift+Tab to go Portfolio -> Markets, got %d", m.activeTab)
 	}
 }
