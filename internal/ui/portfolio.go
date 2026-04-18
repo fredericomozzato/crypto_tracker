@@ -662,8 +662,10 @@ func (m PortfolioModel) View() string {
 
 	contentHeight := m.height - 3 // Reserve 1 row for status bar, 2 for borders
 
-	// Define panel widths in terms of outer (total) columns and derive inner
-	leftPanelOuter := 30
+	// Define panel widths in terms of outer (total) columns and derive inner.
+	// Left panel is kept narrow (22) so the right panel has enough room for all
+	// holdings columns (77 chars) without wrapping.
+	leftPanelOuter := 22
 	rightPanelOuter := m.width - leftPanelOuter
 	leftPanelInner := leftPanelOuter - 2
 	rightPanelInner := rightPanelOuter - 2
@@ -814,7 +816,8 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 
 	// Header
 	currencyUpper := strings.ToUpper(m.currency)
-	_, _ = fmt.Fprintf(&b, "%-15s %8s %10s %12s %12s %8s %6s\n", "Coin", "Ticker", "Amount", "Price ("+currencyUpper+")", "Value ("+currencyUpper+")", "24h", "%")
+	_, _ = fmt.Fprintf(&b, "%-15s %8s %10s %12s %12s %8s %6s\n",
+		"Coin", "Ticker", "Amount", "Price ("+currencyUpper+")", "Value ("+currencyUpper+")", "24h", "%")
 	b.WriteString(strings.Repeat("-", intMin(width, 80)) + "\n")
 
 	// Determine which rows to show based on mode and scroll offset
@@ -828,16 +831,13 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 	inListMode := isListing || isEditing || isDeleting
 
 	if inListMode && visibleRows > 0 {
-		// In list mode, use holdingsCursor and scrollOffset
 		startIdx = m.scrollOffset
 		endIdx = intMin(startIdx+visibleRows, len(m.holdings))
 	} else if visibleRows > 0 {
-		// In browsing mode, use scrollOffset for preview scrolling
 		startIdx = m.scrollOffset
 		endIdx = intMin(startIdx+visibleRows, len(m.holdings))
 	}
 
-	// Ensure indices are valid
 	if startIdx < 0 {
 		startIdx = 0
 	}
@@ -851,16 +851,20 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 		h := m.holdings[i]
 		changeStr := format.FmtChange(h.PriceChange)
 		line := fmt.Sprintf("%-15s %8s %10.4f %12s %12s %8s %5.1f%%",
-			truncate(h.Name, 15),
-			h.Ticker,
-			h.Amount,
-			format.FmtPriceValue(h.Rate),
-			format.FmtMoneyValue(h.Value),
-			changeStr,
-			h.Proportion,
-		)
-		// Highlight current row in list mode
+			truncate(h.Name, 15), h.Ticker, h.Amount,
+			format.FmtPriceValue(h.Rate), format.FmtMoneyValue(h.Value),
+			changeStr, h.Proportion)
+		// Clip or pad to width before applying ANSI reverse styling so the outer
+		// panel never word-wraps the highlighted row at an unexpected position.
 		if inListMode && i == m.holdingsCursor {
+			lw := lipgloss.Width(line)
+			switch {
+			case lw > width:
+				runes := []rune(line)
+				line = string(runes[:width])
+			case lw < width:
+				line += strings.Repeat(" ", width-lw)
+			}
 			line = highlight.Render(line)
 		}
 		b.WriteString(line + "\n")

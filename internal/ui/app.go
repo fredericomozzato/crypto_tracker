@@ -115,6 +115,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+		// Key messages go only to the active tab, never broadcast.
+		var cmd tea.Cmd
+		switch m.activeTab {
+		case tabMarkets:
+			m.markets, cmd = m.markets.update(msg)
+		case tabPortfolio:
+			m.portfolio, cmd = m.portfolio.update(msg)
+		case tabSettings:
+			m.settings, cmd = m.settings.update(msg)
+		}
+		return m, cmd
 
 	case currencyChangedMsg:
 		m.currency = msg.code
