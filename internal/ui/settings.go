@@ -15,13 +15,15 @@ import (
 // settingsMode is a discriminated union for SettingsModel states.
 type settingsMode interface{ isSettingsMode() }
 
-type settingsBrowsing struct{}
-type settingsPicking struct {
-	filter   textinput.Model
-	all      []store.Currency
-	filtered []store.Currency
-	cursor   int
-}
+type (
+	settingsBrowsing struct{}
+	settingsPicking  struct {
+		filter   textinput.Model
+		all      []store.Currency
+		filtered []store.Currency
+		cursor   int
+	}
+)
 
 func (settingsBrowsing) isSettingsMode() {}
 func (settingsPicking) isSettingsMode()  {}
@@ -108,10 +110,9 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 		m.mode = m.makePickingMode(msg.currencies)
 
 	case tea.KeyMsg:
-		switch m.mode.(type) {
+		switch mode := m.mode.(type) {
 		case settingsBrowsing:
-			switch msg.Type {
-			case tea.KeyEnter:
+			if msg.Type == tea.KeyEnter {
 				if len(m.currencies) == 0 {
 					return m, func() tea.Msg { return settingsNeedFetchMsg{} }
 				}
@@ -119,7 +120,7 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 			}
 
 		case settingsPicking:
-			picking := m.mode.(settingsPicking)
+			picking := mode
 
 			switch msg.Type {
 			case tea.KeyEscape:
@@ -218,7 +219,7 @@ func (m SettingsModel) viewBrowsing() string {
 	if name, ok := api.FiatCurrencies[m.selectedCode]; ok {
 		currencyName = name
 	}
-	b.WriteString(fmt.Sprintf("Base Currency: %s (%s)\n", strings.ToUpper(m.selectedCode), currencyName))
+	_, _ = fmt.Fprintf(&b, "Base Currency: %s (%s)\n", strings.ToUpper(m.selectedCode), currencyName)
 	b.WriteString("\n")
 	b.WriteString("Press Enter to change currency\n")
 	b.WriteString("Press Tab to switch tabs, q to quit\n")

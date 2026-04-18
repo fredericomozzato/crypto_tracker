@@ -104,7 +104,7 @@ func TestTabKeyWrapsToMarkets(t *testing.T) {
 	stub := &StubStore{}
 	api := &StubAPI{}
 	m := NewAppModel(context.Background(), stub, api)
-	m.activeTab = tabPortfolio
+	m.activeTab = tabSettings
 	m.width = 100
 	m.height = 30
 
@@ -146,8 +146,8 @@ func TestShiftTabWrapsToPortfolio(t *testing.T) {
 	updated, _ := m.Update(msg)
 	model := updated.(AppModel)
 
-	if model.activeTab != tabPortfolio {
-		t.Errorf("expected Shift+Tab to wrap to Portfolio (%d), got %d", tabPortfolio, model.activeTab)
+	if model.activeTab != tabSettings {
+		t.Errorf("expected Shift+Tab to wrap to Settings (%d), got %d", tabSettings, model.activeTab)
 	}
 }
 

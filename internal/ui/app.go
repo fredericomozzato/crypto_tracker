@@ -142,15 +142,16 @@ func (m AppModel) renderTabBar() string {
 	portfolioLabel := " Portfolio "
 	settingsLabel := " Settings "
 
-	if m.activeTab == tabMarkets {
+	switch m.activeTab {
+	case tabMarkets:
 		marketsLabel = activeStyle.Render(marketsLabel)
 		portfolioLabel = inactiveStyle.Render(portfolioLabel)
 		settingsLabel = inactiveStyle.Render(settingsLabel)
-	} else if m.activeTab == tabPortfolio {
+	case tabPortfolio:
 		marketsLabel = inactiveStyle.Render(marketsLabel)
 		portfolioLabel = activeStyle.Render(portfolioLabel)
 		settingsLabel = inactiveStyle.Render(settingsLabel)
-	} else {
+	case tabSettings:
 		marketsLabel = inactiveStyle.Render(marketsLabel)
 		portfolioLabel = inactiveStyle.Render(portfolioLabel)
 		settingsLabel = activeStyle.Render(settingsLabel)
