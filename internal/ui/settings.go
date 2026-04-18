@@ -359,20 +359,20 @@ func (m SettingsModel) viewPicking(picking settingsPicking) string {
 
 // renderStatusBar returns a status bar with keyboard hints.
 func (m SettingsModel) renderStatusBar() string {
-	var content string
+	var hints string
 	switch m.mode.(type) {
 	case settingsBrowsing:
-		content = "Enter to change • Tab/1-3 switch tabs • q quit"
+		hints = "Enter to change • Tab/1-3 switch tabs • q quit"
 	case settingsPicking:
-		content = "↑/↓ navigate • type to filter • Esc cancel"
+		hints = "↑/↓ navigate • type to filter • Esc cancel"
 	}
 
+	var right string
 	if m.lastErr != "" {
-		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
-		content += " • " + errStyle.Render("error: "+m.lastErr)
+		right = statusBarRed.Render("error: " + m.lastErr)
 	}
 
-	return content
+	return renderStatusBar(m.width, hints, right)
 }
 
 // InputActive returns true when the currency picker is open.

@@ -851,34 +851,34 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 }
 
 func (m PortfolioModel) renderStatusBar() string {
-	var content string
+	var hints string
 	switch m.mode.(type) {
 	case browsing:
-		content = "j/k portfolios • Enter list • e edit • X delete • PgUp/PgDn scroll • n new • q quit"
+		hints = "j/k portfolios • Enter list • e edit • X delete • PgUp/PgDn scroll • n new • q quit"
 	case creating:
-		content = "Enter to create • Esc to cancel"
+		hints = "Enter to create • Esc to cancel"
 	case addCoin:
-		content = "j/k navigate • type to filter • Enter select • Esc cancel"
+		hints = "j/k navigate • type to filter • Enter select • Esc cancel"
 	case addAmount:
-		content = "Enter to confirm • Esc back to coin selection"
+		hints = "Enter to confirm • Esc back to coin selection"
 	case listing:
-		content = "j/k holdings • g/G top/bottom • Enter edit • X delete • a add holding • Esc back to menu • q quit"
+		hints = "j/k holdings • g/G top/bottom • Enter edit • X delete • a add holding • Esc back to menu • q quit"
 	case editingAmount:
-		content = "Enter to save • Esc cancel"
+		hints = "Enter to save • Esc cancel"
 	case deleting:
-		content = "Enter to confirm delete • Esc cancel"
+		hints = "Enter to confirm delete • Esc cancel"
 	case editingPortfolio:
-		content = "Enter to save • Esc to cancel"
+		hints = "Enter to save • Esc to cancel"
 	case deletingPortfolio:
-		content = "Enter to delete • Esc to cancel"
+		hints = "Enter to delete • Esc to cancel"
 	}
 
+	var right string
 	if m.lastErr != "" {
-		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
-		content += " • " + errStyle.Render("error: "+m.lastErr)
+		right = statusBarRed.Render("error: " + m.lastErr)
 	}
 
-	return content
+	return renderStatusBar(m.width, hints, right)
 }
 
 func (m PortfolioModel) openEditPortfolioDialog() PortfolioModel {
