@@ -1844,3 +1844,76 @@ func TestCoinPickerCursorClampedAfterFilter(t *testing.T) {
 		t.Fatal("expected to be in addCoin mode")
 	}
 }
+
+func TestPortfolioCurrencyChanged(t *testing.T) {
+	stub := &StubStore{
+		portfolios:  []store.Portfolio{{ID: 1, Name: "Test"}},
+		holdingRows: []store.HoldingRow{{ID: 1, PortfolioID: 1, Amount: 1.0, CoinID: 1, Ticker: "BTC", Name: "Bitcoin", Rate: 50000.0}},
+	}
+	m := NewPortfolioModel(testCtx, stub, "usd")
+	m.portfolios = stub.portfolios
+	m.holdings = stub.holdingRows
+	m.width = 100
+	m.height = 30
+
+	// Track if holdings were reloaded (they should NOT be on currency change alone)
+	originalHoldings := m.holdings
+
+	// Send currencyChangedMsg
+	msg := currencyChangedMsg{code: "eur"}
+	updated, cmd := m.update(msg)
+
+	// Verify currency updated
+	if updated.currency != "eur" {
+		t.Errorf("expected currency to be 'eur', got '%s'", updated.currency)
+	}
+
+	// Verify holdings were NOT reloaded immediately (DB still has old prices)
+	if cmd != nil {
+		t.Error("expected no cmd (no immediate reload) after currency change")
+	}
+	if len(updated.holdings) != len(originalHoldings) {
+		t.Error("expected holdings to not change immediately after currency change")
+	}
+}
+
+func TestPortfolioPricesUpdatedReloadsHoldings(t *testing.T) {
+	stub := &StubStore{
+		portfolios:  []store.Portfolio{{ID: 1, Name: "Test"}},
+		holdingRows: []store.HoldingRow{{ID: 1, PortfolioID: 1, Amount: 1.0, CoinID: 1, Ticker: "BTC", Name: "Bitcoin", Rate: 45000.0}},
+	}
+	m := NewPortfolioModel(testCtx, stub, "usd")
+	m.portfolios = stub.portfolios
+	m.cursor = 0
+	m.width = 100
+	m.height = 30
+
+	// Send pricesUpdatedMsg (simulating MarketsModel finishing refresh)
+	msg := pricesUpdatedMsg{coins: []store.Coin{{ID: 1, ApiID: "bitcoin", Ticker: "BTC", Name: "Bitcoin", Rate: 50000.0}}}
+	_, cmd := m.update(msg)
+
+	// Verify holdings reload is triggered
+	if cmd == nil {
+		t.Fatal("expected cmd to reload holdings after pricesUpdatedMsg")
+	}
+}
+
+func TestPortfolioViewShowsCurrency(t *testing.T) {
+	stub := &StubStore{
+		portfolios:  []store.Portfolio{{ID: 1, Name: "Test"}},
+		holdingRows: []store.HoldingRow{{ID: 1, PortfolioID: 1, Amount: 1.5, CoinID: 1, Ticker: "BTC", Name: "Bitcoin", Rate: 50000.0}},
+	}
+	m := NewPortfolioModel(testCtx, stub, "eur")
+	m.portfolios = stub.portfolios
+	m.holdings = stub.holdingRows
+	m.cursor = 0
+	m.width = 100
+	m.height = 30
+
+	view := m.View()
+
+	// Verify EUR appears in the view (in headers or values)
+	if !strings.Contains(view, "EUR") {
+		t.Errorf("expected view to contain 'EUR' currency code, got %q", view)
+	}
+}

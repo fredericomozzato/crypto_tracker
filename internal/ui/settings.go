@@ -115,6 +115,9 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 		m.loading = false
 		m.lastErr = msg.err.Error()
 
+	case currencyChangedMsg:
+		m.selectedCode = msg.code
+
 	case tea.KeyMsg:
 		switch mode := m.mode.(type) {
 		case settingsBrowsing:
@@ -138,8 +141,21 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 				return m, nil
 
 			case tea.KeyEnter:
-				// No-op for Slice 13 - selection handled in Slice 14
-				return m, nil
+				// Guard against empty filtered list
+				if len(picking.filtered) == 0 {
+					return m, nil
+				}
+				selected := picking.filtered[picking.cursor]
+				// Persist to database
+				if err := m.store.SetSetting(m.ctx, "selected_currency", selected.Code); err != nil {
+					m.lastErr = err.Error()
+					return m, nil
+				}
+				// Update selected code and transition to browsing
+				m.selectedCode = selected.Code
+				m.mode = settingsBrowsing{}
+				// Emit currency changed message to trigger refresh in other tabs
+				return m, func() tea.Msg { return currencyChangedMsg{code: selected.Code} }
 
 			case tea.KeyDown:
 				if picking.cursor < len(picking.filtered)-1 {

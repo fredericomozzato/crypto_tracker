@@ -881,3 +881,45 @@ func TestMarketsRateLimitedStatusBarStyled(t *testing.T) {
 		t.Errorf("expected view to contain 'Rate limited', got %q", view)
 	}
 }
+
+func TestMarketsCurrencyChanged(t *testing.T) {
+	stub := &StubStore{coins: threeCoins()}
+	apiStub := &StubAPI{prices: map[string]float64{"coin-1": 0.85}}
+	m := NewMarketsModel(testCtx, stub, apiStub, "usd")
+	m.coins = threeCoins()
+	m.width = 100
+	m.height = 30
+
+	// Send currencyChangedMsg
+	msg := currencyChangedMsg{code: "eur"}
+	updated, cmd := m.update(msg)
+
+	// Verify currency updated
+	if updated.currency != "eur" {
+		t.Errorf("expected currency to be 'eur', got '%s'", updated.currency)
+	}
+
+	// Verify refreshing is true
+	if !updated.refreshing {
+		t.Error("expected refreshing to be true after currency change")
+	}
+
+	// Verify a refresh command is returned
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd after currency change")
+	}
+}
+
+func TestMarketsViewShowsCurrencyHeader(t *testing.T) {
+	stub := &StubStore{coins: threeCoins()}
+	apiStub := &StubAPI{}
+	m := NewMarketsModel(testCtx, stub, apiStub, "eur")
+	m.coins = threeCoins()
+	m.width = 100
+	m.height = 30
+
+	view := m.View()
+	if !strings.Contains(view, "Price (EUR)") {
+		t.Errorf("expected view to contain 'Price (EUR)', got %q", view)
+	}
+}
