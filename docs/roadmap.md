@@ -128,7 +128,46 @@ New runtime behaviour: the app must stay within the free-tier limit of ~30 req/m
 - Surface rate-limit status in the status bar (e.g. `Rate limited — retrying in Xs`)
 - **TDD:** throttle logic, backoff behaviour, status bar state for rate-limited condition
 
-## Slice 13 — `--debug` logging
+
+## Slice 13 — Settings tab + currency data layer
+STATUS: IN_REVIEW
+
+UI and infrastructure only — Enter does not select a currency yet.
+
+- New DB tables: `currencies (code TEXT PK, name TEXT)` and `settings (key TEXT PK, value TEXT)`
+- `CoinGeckoClient.FetchSupportedCurrencies(ctx) ([]string, error)` — new API method hitting `/simple/supported_vs_currencies`
+- Filter CoinGecko response against a hardcoded fiat currency map (`internal/api/fiat.go`) — code → display name (~35 world fiat currencies; intersection with CoinGecko response determines what we store)
+- `Store` gains: `UpsertCurrencies`, `GetAllCurrencies`, `GetSetting`, `SetSetting`
+- On first launch (no currencies in DB): async `tea.Cmd` fires `FetchSupportedCurrencies`, filters to fiat, persists to DB; Settings tab shows "Loading currencies…" until available
+- Default `selected_currency = "usd"` seeded on DB init
+- New `internal/ui/settings.go`: `SettingsModel` with two modes:
+  - **Browsing**: displays "Base Currency: USD" line, `Enter` opens picker, `Esc`/`q` returns to tab bar
+  - **Picking**: dialog with searchable `textinput.Model`, scrollable filtered list of `Currency` rows, `j`/`k` scroll, `Esc` closes dialog (no selection), `Enter` does nothing yet
+- `AppModel` gains `settings SettingsModel` and `tabSettings` (3rd tab, `tab = iota` now has 3 values)
+- Tab bar renders `Markets | Portfolio | Settings`; `3` key also switches to Settings
+- `InputActive()` on `SettingsModel` returns true when picker is open — suppresses tab switching
+- **TDD:** store CRUD for settings/currencies, API mock for `FetchSupportedCurrencies`, settings model state transitions (browsing ↔ picking), search/filter logic, fiat filtering
+
+## Slice 14 — Currency selection + correct price display
+STATUS: PENDING
+
+Full end-to-end: select a currency → re-fetch data in that currency → display everywhere with correct values and code.
+
+- `CoinGeckoClient.FetchMarkets(ctx, currency, limit)` and `FetchPrices(ctx, currency, apiIDs)` — add `currency string` parameter (replaces hardcoded `"usd"`)
+- `FetchPrices` response parsing uses dynamic key (`currency`) instead of `"usd"`
+- `format.FmtPrice(currency, v)` — `currency` prepended as uppercase code (`USD 84,321.45` / `EUR 0.001234`)
+- `format.FmtMoney(currency, v)` — same, always 2 dp (`EUR 1,500.50`)
+- Picking mode `Enter` now selects the highlighted currency:
+  - Writes `selected_currency` to `settings` table
+  - Triggers immediate `cmdRefresh` using the new currency
+  - Returns to browsing mode
+- Markets tab reads selected currency from model state and passes it through `FmtPrice`/`FmtChange`
+- Portfolio tab passes currency to `FmtPrice`/`FmtMoney` for Price, Value, and total columns
+- Auto-refresh always uses the current `selected_currency` value from DB
+- App init: read `selected_currency` from DB (default `"usd"`) before first fetch
+- **TDD:** `FmtPrice`/`FmtMoney` with different currency codes, `FetchMarkets`/`FetchPrices` with `currency` param stubs, end-to-end render assertion with non-USD currency
+
+## Slice 15 — `--debug` logging
 STATUS: PENDING
 
 - `--debug` flag enables `slog` logging to `$XDG_STATE_HOME/crypto_tracker/app.log`
