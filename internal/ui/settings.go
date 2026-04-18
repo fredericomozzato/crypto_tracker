@@ -110,6 +110,10 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 		// Transition to picking mode
 		m.mode = m.makePickingMode(msg.currencies)
 
+	case errMsg:
+		m.loading = false
+		m.lastErr = msg.err.Error()
+
 	case tea.KeyMsg:
 		switch mode := m.mode.(type) {
 		case settingsBrowsing:
@@ -154,25 +158,7 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 				return m, nil
 
 			case tea.KeyRunes:
-				for _, r := range msg.Runes {
-					switch r {
-					case 'j', 'J':
-						if picking.cursor < len(picking.filtered)-1 {
-							picking.cursor++
-						}
-						picking.adjustViewport(m.height)
-						m.mode = picking
-						return m, nil
-					case 'k', 'K':
-						if picking.cursor > 0 {
-							picking.cursor--
-						}
-						picking.adjustViewport(m.height)
-						m.mode = picking
-						return m, nil
-					}
-				}
-				// Forward to filter input
+				// Forward all character keys to filter input (no j/k navigation)
 				var cmd tea.Cmd
 				picking.filter, cmd = picking.filter.Update(msg)
 				picking.filtered = filterCurrencies(picking.all, picking.filter.Value())
@@ -205,6 +191,7 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 func (m SettingsModel) makePickingMode(currencies []store.Currency) settingsPicking {
 	filter := textinput.New()
 	filter.Placeholder = "Search currencies..."
+	filter.Prompt = "" // Remove the default "> " prompt
 	filter.Focus()
 
 	return settingsPicking{
@@ -233,9 +220,9 @@ func filterCurrencies(currencies []store.Currency, filter string) []store.Curren
 }
 
 // adjustViewport updates offset so the cursor stays visible.
-// Reserves 4 lines for header, filter input, and status bar.
+// Reserves 8 lines for header, filter input, dialog borders, and status bar.
 func (p *settingsPicking) adjustViewport(height int) {
-	visibleRows := height - 4
+	visibleRows := height - 8
 	if visibleRows < 1 {
 		visibleRows = 1
 	}
@@ -276,12 +263,22 @@ func (m SettingsModel) viewBrowsing() string {
 
 	var b strings.Builder
 
-	// Show current currency
+	// Panel title
+	titleStyle := lipgloss.NewStyle().Bold(true)
+	b.WriteString(titleStyle.Render("Settings") + "\n")
+
+	// Show current currency as a selectable row
 	currencyName := m.selectedCode
 	if name, ok := api.FiatCurrencies[m.selectedCode]; ok {
 		currencyName = name
 	}
-	_, _ = fmt.Fprintf(&b, "Base Currency: %s (%s)\n", strings.ToUpper(m.selectedCode), currencyName)
+	line := fmt.Sprintf("  Base Currency: %s (%s)", strings.ToUpper(m.selectedCode), currencyName)
+
+	// Highlight the row (cursor is always on this single row in browsing mode)
+	highlight := lipgloss.NewStyle().Reverse(true)
+	line = highlight.Render(line)
+
+	b.WriteString(line + "\n")
 
 	if m.lastErr != "" {
 		b.WriteString("\n")
@@ -329,13 +326,15 @@ func (m SettingsModel) viewPicking(picking settingsPicking) string {
 
 		for i := picking.offset; i < end; i++ {
 			c := picking.filtered[i]
-			line := fmt.Sprintf("  %s - %s", strings.ToUpper(c.Code), c.Name)
+			var line string
 			if i == picking.cursor {
 				// Highlight selected
 				selectedStyle := lipgloss.NewStyle().
 					Background(lipgloss.Color("#4A4A4A")).
 					Foreground(lipgloss.Color("#FFFFFF"))
-				line = selectedStyle.Render("> " + line[2:])
+				line = selectedStyle.Render(fmt.Sprintf("> %s - %s", strings.ToUpper(c.Code), c.Name))
+			} else {
+				line = fmt.Sprintf("  %s - %s", strings.ToUpper(c.Code), c.Name)
 			}
 			b.WriteString(line + "\n")
 		}
@@ -357,7 +356,7 @@ func (m SettingsModel) renderStatusBar() string {
 	case settingsBrowsing:
 		content = "Enter to change • Tab/1-3 switch tabs • Esc back to tabs • q quit"
 	case settingsPicking:
-		content = "j/k/↑/↓ navigate • type to filter • Esc cancel"
+		content = "↑/↓ navigate • type to filter • Esc cancel"
 	}
 
 	if m.lastErr != "" {

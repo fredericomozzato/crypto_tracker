@@ -106,7 +106,7 @@ func TestSettingsEnterTriggersFetchWhenNoCurrencies(t *testing.T) {
 	}
 }
 
-func TestSettingsPickJkNavigation(t *testing.T) {
+func TestSettingsPickArrowNavigation(t *testing.T) {
 	currencies := []store.Currency{
 		{Code: "usd", Name: "US Dollar"},
 		{Code: "eur", Name: "Euro"},
@@ -125,18 +125,18 @@ func TestSettingsPickJkNavigation(t *testing.T) {
 		t.Errorf("expected cursor at 0 initially, got %d", picking.cursor)
 	}
 
-	// Press j to move down
-	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	// Press Down to move down
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyDown})
 	picking = m.mode.(settingsPicking)
 	if picking.cursor != 1 {
-		t.Errorf("expected cursor at 1 after j, got %d", picking.cursor)
+		t.Errorf("expected cursor at 1 after Down, got %d", picking.cursor)
 	}
 
-	// Press k to move up
-	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	// Press Up to move up
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyUp})
 	picking = m.mode.(settingsPicking)
 	if picking.cursor != 0 {
-		t.Errorf("expected cursor at 0 after k, got %d", picking.cursor)
+		t.Errorf("expected cursor at 0 after Up, got %d", picking.cursor)
 	}
 }
 
@@ -228,8 +228,8 @@ func TestSettingsPickCursorClampsAtTop(t *testing.T) {
 	// Enter picking mode
 	m, _ = m.update(tea.KeyMsg{Type: tea.KeyEnter})
 
-	// Press k when at top
-	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	// Press Up when at top
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyUp})
 	picking := m.mode.(settingsPicking)
 
 	if picking.cursor != 0 {
@@ -250,12 +250,12 @@ func TestSettingsPickCursorClampsAtBottom(t *testing.T) {
 	// Enter picking mode
 	m, _ = m.update(tea.KeyMsg{Type: tea.KeyEnter})
 
-	// Move to last item
-	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
-	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	// Move to last item using Down arrow
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyDown})
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyDown})
 
 	// Try to move past end
-	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyDown})
 	picking := m.mode.(settingsPicking)
 
 	if picking.cursor != 1 {
