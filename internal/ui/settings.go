@@ -220,11 +220,12 @@ func filterCurrencies(currencies []store.Currency, filter string) []store.Curren
 }
 
 // adjustViewport updates offset so the cursor stays visible.
-// Reserves 8 lines for header, filter input, dialog borders, and status bar.
-func (p *settingsPicking) adjustViewport(height int) {
-	visibleRows := height - 8
-	if visibleRows < 1 {
-		visibleRows = 1
+// The picker displays at most maxVisibleItems (10) currencies at once.
+func (p *settingsPicking) adjustViewport(_ int) {
+	const maxVisibleItems = 10
+	visibleRows := maxVisibleItems
+	if visibleRows > len(p.filtered) {
+		visibleRows = len(p.filtered)
 	}
 	if p.cursor < p.offset {
 		p.offset = p.cursor
@@ -321,14 +322,14 @@ func (m SettingsModel) viewPicking(picking settingsPicking) string {
 	b.WriteString(picking.filter.View())
 	b.WriteString("\n\n")
 
-	// Currency list with viewport
+	// Currency list - show at most 10 items to keep dialog compact
+	const maxVisibleItems = 10
 	if len(picking.filtered) == 0 {
 		b.WriteString("No currencies match your search.\n")
 	} else {
-		// Calculate visible range
-		visibleRows := m.height - 8 // Reserve space for header, filter, borders, status
-		if visibleRows < 1 {
-			visibleRows = 1
+		visibleRows := maxVisibleItems
+		if visibleRows > len(picking.filtered) {
+			visibleRows = len(picking.filtered)
 		}
 		end := picking.offset + visibleRows
 		if end > len(picking.filtered) {
@@ -356,12 +357,9 @@ func (m SettingsModel) viewPicking(picking settingsPicking) string {
 		Padding(1, 2).
 		Render(b.String())
 
-	// Reserve 1 line for tab bar (already subtracted in AppModel) and 1 for status bar
-	placeHeight := m.height - 1
-	if placeHeight < 1 {
-		placeHeight = 1
-	}
-	content := lipgloss.Place(m.width, placeHeight, lipgloss.Center, lipgloss.Center, dialog)
+	// Place dialog in center without pushing tab bar off-screen
+	// The dialog height is fixed based on content, not terminal height
+	content := lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dialog)
 	return content + "\n" + m.renderStatusBar()
 }
 
