@@ -14,6 +14,8 @@ structured review document and report findings to the user.
 
 **Announce at start:** "Using the qa skill to review the current IN_REVIEW slice."
 
+**IMPORTANT**: this skill is used to FIND and REPORT bugs. You DO NOT fix, explore fixes or try to find solutions. You simply find bugs and point them out. The fix agent will be responsible for fixing the errors. DO NOT waste tokens and context looking for solutions for the fixes!!! FOCUS ONLY on finding and understanding the bugs. Point to relevant files and lines but forget about planning or finding a fix.
+
 ## Workflow
 
 ```dot
