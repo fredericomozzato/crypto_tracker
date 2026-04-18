@@ -130,7 +130,7 @@ New runtime behaviour: the app must stay within the free-tier limit of ~30 req/m
 
 
 ## Slice 13 — Settings tab + currency data layer
-STATUS: IN_REVIEW
+STATUS: DONE
 
 UI and infrastructure only — Enter does not select a currency yet.
 
@@ -149,7 +149,7 @@ UI and infrastructure only — Enter does not select a currency yet.
 - **TDD:** store CRUD for settings/currencies, API mock for `FetchSupportedCurrencies`, settings model state transitions (browsing ↔ picking), search/filter logic, fiat filtering
 
 ## Slice 14 — Currency selection + correct price display
-STATUS: PENDING
+STATUS: IN_REVIEW
 
 Full end-to-end: select a currency → re-fetch data in that currency → display everywhere with correct values and code.
 

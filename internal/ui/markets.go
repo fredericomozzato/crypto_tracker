@@ -29,6 +29,7 @@ type MarketsModel struct {
 	offset           int
 	rateLimitedUntil time.Time // time at which rate-limit cooldown expires
 	refreshAttempts  int       // consecutive rate-limit errors (for backoff)
+	currency         string
 }
 
 // coinsLoadedMsg is sent when coins are successfully loaded from the API.
@@ -56,11 +57,12 @@ const (
 )
 
 // NewMarketsModel creates a new MarketsModel with the given dependencies.
-func NewMarketsModel(ctx context.Context, s store.Store, c api.CoinGeckoClient) MarketsModel {
+func NewMarketsModel(ctx context.Context, s store.Store, c api.CoinGeckoClient, currency string) MarketsModel {
 	return MarketsModel{
-		ctx:    ctx,
-		store:  s,
-		client: c,
+		ctx:      ctx,
+		store:    s,
+		client:   c,
+		currency: currency,
 	}
 }
 
@@ -87,7 +89,7 @@ func (m MarketsModel) cmdLoad() tea.Cmd {
 			return coinsLoadedMsg{coins: existing}
 		}
 
-		fetched, err := m.client.FetchMarkets(m.ctx, coinFetchLimit)
+		fetched, err := m.client.FetchMarkets(m.ctx, m.currency, coinFetchLimit)
 		if err != nil {
 			return errMsg{err: err}
 		}
@@ -149,6 +151,10 @@ func (m MarketsModel) update(msg tea.Msg) (MarketsModel, tea.Cmd) {
 			cmds = append(cmds, m.cmdRefresh())
 		}
 		return m, tea.Batch(cmds...)
+	case currencyChangedMsg:
+		m.currency = msg.code
+		m.refreshing = true
+		return m, m.cmdRefresh()
 	case coinsLoadedMsg:
 		m.coins = msg.coins
 		m.lastErr = ""
@@ -194,7 +200,7 @@ func (m MarketsModel) cmdRefresh() tea.Cmd {
 			apiIDs[i] = c.ApiID
 		}
 
-		prices, err := m.client.FetchPrices(m.ctx, apiIDs)
+		prices, err := m.client.FetchPrices(m.ctx, apiIDs, m.currency)
 		if err != nil {
 			return errMsg{err: err}
 		}
@@ -232,19 +238,20 @@ func (m MarketsModel) View() string {
 	wRank := 4
 	wName := 22
 	wTicker := 8
-	wPrice := 14
+	wPrice := 18
 	wChange := 9
 
 	highlight := lipgloss.NewStyle().Reverse(true)
 	green := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
 	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
 
+	currencyUpper := strings.ToUpper(m.currency)
 	header := fmt.Sprintf(
 		"%*s  %-*s  %-*s  %*s  %*s",
 		wRank, "#",
 		wName, "Name",
 		wTicker, "Ticker",
-		wPrice, "Price (USD)",
+		wPrice, "Price ("+currencyUpper+")",
 		wChange, "24h",
 	)
 
@@ -253,7 +260,7 @@ func (m MarketsModel) View() string {
 
 	for i := m.offset; i < end; i++ {
 		c := m.coins[i]
-		price := format.FmtPrice(c.Rate)
+		price := format.FmtPriceValue(c.Rate)
 		change := format.FmtChange(c.PriceChange)
 
 		if c.PriceChange >= 0 {

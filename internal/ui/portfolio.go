@@ -111,14 +111,16 @@ type PortfolioModel struct {
 	scrollOffset   int // vertical scroll offset for holdings list preview
 	mode           portfolioMode
 	lastErr        string
+	currency       string
 }
 
 // NewPortfolioModel creates a new PortfolioModel with the given dependencies.
-func NewPortfolioModel(ctx context.Context, s store.Store) PortfolioModel {
+func NewPortfolioModel(ctx context.Context, s store.Store, currency string) PortfolioModel {
 	return PortfolioModel{
-		ctx:   ctx,
-		store: s,
-		mode:  browsing{},
+		ctx:      ctx,
+		store:    s,
+		mode:     browsing{},
+		currency: currency,
 	}
 }
 
@@ -577,6 +579,22 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 	case errMsg:
 		m.lastErr = msg.err.Error()
 		return m, nil
+
+	case currencyChangedMsg:
+		m.currency = msg.code
+		// Don't reload holdings yet — prices in DB are still in the old currency.
+		// When MarketsModel finishes refreshing, pricesUpdatedMsg will be broadcast,
+		// and we'll reload holdings then.
+		return m, nil
+
+	case pricesUpdatedMsg:
+		// Prices in the DB have been updated (possibly in a new currency after a
+		// currency change). Reload holdings so Value, Proportion, and totals
+		// reflect the new rates.
+		if len(m.portfolios) > 0 {
+			return m, m.cmdLoadHoldings(m.portfolios[m.cursor].ID)
+		}
+		return m, nil
 	}
 
 	return m, nil
@@ -644,8 +662,10 @@ func (m PortfolioModel) View() string {
 
 	contentHeight := m.height - 3 // Reserve 1 row for status bar, 2 for borders
 
-	// Define panel widths in terms of outer (total) columns and derive inner
-	leftPanelOuter := 30
+	// Define panel widths in terms of outer (total) columns and derive inner.
+	// Left panel is kept narrow (22) so the right panel has enough room for all
+	// holdings columns (77 chars) without wrapping.
+	leftPanelOuter := 22
 	rightPanelOuter := m.width - leftPanelOuter
 	leftPanelInner := leftPanelOuter - 2
 	rightPanelInner := rightPanelOuter - 2
@@ -787,7 +807,7 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 	}
 
 	var b strings.Builder
-	b.WriteString(titleStyle.Render(fmt.Sprintf("Holdings — %s (%s)", selectedPortfolio.Name, format.FmtMoney(totalValue))) + "\n")
+	b.WriteString(titleStyle.Render(fmt.Sprintf("Holdings — %s (%s)", selectedPortfolio.Name, format.FmtMoney(totalValue, m.currency))) + "\n")
 
 	if len(m.holdings) == 0 {
 		b.WriteString("no holdings — press a to add one")
@@ -795,7 +815,9 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 	}
 
 	// Header
-	_, _ = fmt.Fprintf(&b, "%-15s %8s %10s %12s %12s %8s %6s\n", "Coin", "Ticker", "Amount", "Price", "Value", "24h", "%")
+	currencyUpper := strings.ToUpper(m.currency)
+	_, _ = fmt.Fprintf(&b, "%-15s %8s %10s %12s %12s %8s %6s\n",
+		"Coin", "Ticker", "Amount", "Price ("+currencyUpper+")", "Value ("+currencyUpper+")", "24h", "%")
 	b.WriteString(strings.Repeat("-", intMin(width, 80)) + "\n")
 
 	// Determine which rows to show based on mode and scroll offset
@@ -809,16 +831,13 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 	inListMode := isListing || isEditing || isDeleting
 
 	if inListMode && visibleRows > 0 {
-		// In list mode, use holdingsCursor and scrollOffset
 		startIdx = m.scrollOffset
 		endIdx = intMin(startIdx+visibleRows, len(m.holdings))
 	} else if visibleRows > 0 {
-		// In browsing mode, use scrollOffset for preview scrolling
 		startIdx = m.scrollOffset
 		endIdx = intMin(startIdx+visibleRows, len(m.holdings))
 	}
 
-	// Ensure indices are valid
 	if startIdx < 0 {
 		startIdx = 0
 	}
@@ -832,16 +851,20 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 		h := m.holdings[i]
 		changeStr := format.FmtChange(h.PriceChange)
 		line := fmt.Sprintf("%-15s %8s %10.4f %12s %12s %8s %5.1f%%",
-			truncate(h.Name, 15),
-			h.Ticker,
-			h.Amount,
-			format.FmtPrice(h.Rate),
-			format.FmtMoney(h.Value),
-			changeStr,
-			h.Proportion,
-		)
-		// Highlight current row in list mode
+			truncate(h.Name, 15), h.Ticker, h.Amount,
+			format.FmtPriceValue(h.Rate), format.FmtMoneyValue(h.Value),
+			changeStr, h.Proportion)
+		// Clip or pad to width before applying ANSI reverse styling so the outer
+		// panel never word-wraps the highlighted row at an unexpected position.
 		if inListMode && i == m.holdingsCursor {
+			lw := lipgloss.Width(line)
+			switch {
+			case lw > width:
+				runes := []rune(line)
+				line = string(runes[:width])
+			case lw < width:
+				line += strings.Repeat(" ", width-lw)
+			}
 			line = highlight.Render(line)
 		}
 		b.WriteString(line + "\n")
@@ -1179,7 +1202,7 @@ func (m PortfolioModel) renderDeleteDialog(mode deleting) string {
 	_, _ = fmt.Fprintf(&b, "Delete Holding\n\n")
 	_, _ = fmt.Fprintf(&b, "Coin: %s (%s)\n", mode.holding.Name, mode.holding.Ticker)
 	_, _ = fmt.Fprintf(&b, "Amount: %.4f\n", mode.holding.Amount)
-	_, _ = fmt.Fprintf(&b, "Value: %s\n\n", format.FmtMoney(mode.holding.Value))
+	_, _ = fmt.Fprintf(&b, "Value: %s\n\n", format.FmtMoney(mode.holding.Value, m.currency))
 	b.WriteString("Press Enter to confirm deletion, or Esc to cancel.")
 
 	return lipgloss.NewStyle().

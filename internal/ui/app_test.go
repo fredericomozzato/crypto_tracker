@@ -477,3 +477,62 @@ func TestShiftTabCyclesBackwards(t *testing.T) {
 		t.Errorf("expected Shift+Tab to go Portfolio -> Markets, got %d", m.activeTab)
 	}
 }
+
+func TestAppInitCurrencyDefault(t *testing.T) {
+	// No selected_currency in settings - should default to "usd"
+	stub := &StubStore{settings: map[string]string{}}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+
+	if m.currency != "usd" {
+		t.Errorf("expected currency to default to 'usd', got '%s'", m.currency)
+	}
+}
+
+func TestAppInitCurrencyFromDB(t *testing.T) {
+	// selected_currency=eur in settings - should set currency to "eur"
+	stub := &StubStore{settings: map[string]string{"selected_currency": "eur"}}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+
+	if m.currency != "eur" {
+		t.Errorf("expected currency to be 'eur' from DB, got '%s'", m.currency)
+	}
+}
+
+func TestCurrencyChangedPropagates(t *testing.T) {
+	stub := &StubStore{}
+	api := &StubAPI{}
+	m := NewAppModel(context.Background(), stub, api)
+	m.width = 100
+	m.height = 30
+
+	// Set dimensions on children
+	m.markets.width = 100
+	m.markets.height = 29
+	m.portfolio.width = 100
+	m.portfolio.height = 29
+	m.settings.width = 100
+	m.settings.height = 29
+
+	// Send currencyChangedMsg
+	msg := currencyChangedMsg{code: "eur"}
+	updated, _ := m.Update(msg)
+	model := updated.(AppModel)
+
+	// Verify AppModel.currency updated
+	if model.currency != "eur" {
+		t.Errorf("expected AppModel.currency to be 'eur', got '%s'", model.currency)
+	}
+
+	// Verify message reached all children
+	if model.markets.currency != "eur" {
+		t.Errorf("expected MarketsModel.currency to be 'eur', got '%s'", model.markets.currency)
+	}
+	if model.portfolio.currency != "eur" {
+		t.Errorf("expected PortfolioModel.currency to be 'eur', got '%s'", model.portfolio.currency)
+	}
+	if model.settings.selectedCode != "eur" {
+		t.Errorf("expected SettingsModel.selectedCode to be 'eur', got '%s'", model.settings.selectedCode)
+	}
+}

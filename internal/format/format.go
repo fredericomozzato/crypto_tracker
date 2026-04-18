@@ -5,15 +5,21 @@ import (
 	"strings"
 )
 
-// FmtPrice formats a USD price:
-//   - v >= 1: "$X,XXX.XX" (2 dp, comma thousands separator)
-//   - v < 1:  "$0.XXXXXX" (6 dp)
-func FmtPrice(v float64) string {
+// currencyCode returns the uppercase 3-letter currency code.
+func currencyCode(currency string) string {
+	return strings.ToUpper(currency)
+}
+
+// FmtPrice formats a price in the given currency:
+//   - v >= 1: "USD X,XXX.XX" (2 dp, comma thousands separator)
+//   - v < 1:  "USD 0.XXXXXX" (6 dp)
+func FmtPrice(v float64, currency string) string {
+	prefix := currencyCode(currency)
 	if v >= 1 {
 		parts := strings.SplitN(fmt.Sprintf("%.2f", v), ".", 2)
-		return "$" + addCommas(parts[0]) + "." + parts[1]
+		return prefix + " " + addCommas(parts[0]) + "." + parts[1]
 	}
-	return fmt.Sprintf("$%.6f", v)
+	return fmt.Sprintf("%s %.6f", prefix, v)
 }
 
 // FmtChange formats a 24 h percentage change as "+X.XX%" or "-X.XX%".
@@ -24,10 +30,27 @@ func FmtChange(v float64) string {
 	return fmt.Sprintf("%.2f%%", v)
 }
 
-// FmtMoney formats a holding value as "$X,XXX.XX" (always 2 dp, thousands separator).
-func FmtMoney(v float64) string {
+// FmtMoney formats a holding value as "USD X,XXX.XX" (always 2 dp, thousands separator).
+func FmtMoney(v float64, currency string) string {
 	parts := strings.SplitN(fmt.Sprintf("%.2f", v), ".", 2)
-	return "$" + addCommas(parts[0]) + "." + parts[1]
+	return currencyCode(currency) + " " + addCommas(parts[0]) + "." + parts[1]
+}
+
+// FmtPriceValue formats a price value without the currency prefix.
+// Same rules as FmtPrice for decimal places, but omits the "USD " prefix.
+func FmtPriceValue(v float64) string {
+	if v >= 1 {
+		parts := strings.SplitN(fmt.Sprintf("%.2f", v), ".", 2)
+		return addCommas(parts[0]) + "." + parts[1]
+	}
+	return fmt.Sprintf("%.6f", v)
+}
+
+// FmtMoneyValue formats a holding value without the currency prefix.
+// Always 2 decimal places with thousands separator.
+func FmtMoneyValue(v float64) string {
+	parts := strings.SplitN(fmt.Sprintf("%.2f", v), ".", 2)
+	return addCommas(parts[0]) + "." + parts[1]
 }
 
 func addCommas(s string) string {

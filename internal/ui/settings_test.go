@@ -193,9 +193,10 @@ func TestSettingsPickEscReturnsToBrowsing(t *testing.T) {
 	}
 }
 
-func TestSettingsPickEnterNoOp(t *testing.T) {
+func TestSettingsPickEnterSelectsCurrency(t *testing.T) {
 	currencies := []store.Currency{
 		{Code: "usd", Name: "US Dollar"},
+		{Code: "eur", Name: "Euro"},
 	}
 	stub := &StubStore{currencies: currencies}
 	api := &StubAPI{}
@@ -205,11 +206,38 @@ func TestSettingsPickEnterNoOp(t *testing.T) {
 	// Enter picking mode
 	m, _ = m.update(tea.KeyMsg{Type: tea.KeyEnter})
 
-	// Press Enter - should be no-op (Slice 14 wires it)
-	_, cmd := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+	// Move cursor to second currency (EUR)
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyDown})
 
-	if cmd != nil {
-		t.Error("expected no command from Enter in picking mode (Slice 13)")
+	// Press Enter to select
+	m, cmd := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Verify command returns currencyChangedMsg
+	if cmd == nil {
+		t.Fatal("expected command from Enter in picking mode, got nil")
+	}
+	msg := cmd()
+	changedMsg, ok := msg.(currencyChangedMsg)
+	if !ok {
+		t.Fatalf("expected currencyChangedMsg, got %T", msg)
+	}
+	if changedMsg.code != "eur" {
+		t.Errorf("expected currency code 'eur', got '%s'", changedMsg.code)
+	}
+
+	// Verify mode transitioned to browsing
+	if m.InputActive() {
+		t.Error("expected browsing mode after selection, still in picking mode")
+	}
+
+	// Verify selectedCode updated
+	if m.selectedCode != "eur" {
+		t.Errorf("expected selectedCode 'eur', got '%s'", m.selectedCode)
+	}
+
+	// Verify SetSetting was called
+	if stub.settings == nil || stub.settings["selected_currency"] != "eur" {
+		t.Error("expected SetSetting to be called with selected_currency=eur")
 	}
 }
 

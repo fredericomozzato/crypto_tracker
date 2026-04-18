@@ -145,24 +145,29 @@ func (s *StubStore) SetSetting(ctx context.Context, key, value string) error {
 	return nil
 }
 
+type fetchMarketsCall struct {
+	currency string
+	limit    int
+}
+
 // StubAPI implements api.CoinGeckoClient for testing
 type StubAPI struct {
 	coins               []store.Coin
 	prices              map[string]float64
 	supportedCurrencies []string
 	err                 error
-	fetchMarketsCalls   []int
+	fetchMarketsCalls   []fetchMarketsCall
 }
 
-func (a *StubAPI) FetchMarkets(ctx context.Context, limit int) ([]store.Coin, error) {
-	a.fetchMarketsCalls = append(a.fetchMarketsCalls, limit)
+func (a *StubAPI) FetchMarkets(ctx context.Context, currency string, limit int) ([]store.Coin, error) {
+	a.fetchMarketsCalls = append(a.fetchMarketsCalls, fetchMarketsCall{currency: currency, limit: limit})
 	if a.err != nil {
 		return nil, a.err
 	}
 	return a.coins, nil
 }
 
-func (a *StubAPI) FetchPrices(ctx context.Context, apiIDs []string) (map[string]float64, error) {
+func (a *StubAPI) FetchPrices(ctx context.Context, apiIDs []string, currency string) (map[string]float64, error) {
 	if a.err != nil {
 		return nil, a.err
 	}
@@ -200,7 +205,7 @@ var testCtx = context.Background()
 // setupMarketsModel creates a MarketsModel with pre-loaded coins for cursor tests.
 func setupMarketsModel(t *testing.T, coins []store.Coin) MarketsModel {
 	t.Helper()
-	m := NewMarketsModel(testCtx, &StubStore{coins: coins}, &StubAPI{})
+	m := NewMarketsModel(testCtx, &StubStore{coins: coins}, &StubAPI{}, "usd")
 	m.width = 120
 	m.height = 40
 	updated, _ := m.update(coinsLoadedMsg{coins: coins})
