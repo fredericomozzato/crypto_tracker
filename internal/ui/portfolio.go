@@ -813,7 +813,8 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 	}
 
 	// Header
-	_, _ = fmt.Fprintf(&b, "%-15s %8s %10s %12s %12s %8s %6s\n", "Coin", "Ticker", "Amount", "Price", "Value", "24h", "%")
+	currencyUpper := strings.ToUpper(m.currency)
+	_, _ = fmt.Fprintf(&b, "%-15s %8s %10s %12s %12s %8s %6s\n", "Coin", "Ticker", "Amount", "Price ("+currencyUpper+")", "Value ("+currencyUpper+")", "24h", "%")
 	b.WriteString(strings.Repeat("-", intMin(width, 80)) + "\n")
 
 	// Determine which rows to show based on mode and scroll offset
@@ -853,8 +854,8 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 			truncate(h.Name, 15),
 			h.Ticker,
 			h.Amount,
-			format.FmtPrice(h.Rate, m.currency),
-			format.FmtMoney(h.Value, m.currency),
+			format.FmtPriceValue(h.Rate),
+			format.FmtMoneyValue(h.Value),
 			changeStr,
 			h.Proportion,
 		)

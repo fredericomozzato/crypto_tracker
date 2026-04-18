@@ -153,3 +153,43 @@ func TestCurrencyCodeUpperCase(t *testing.T) {
 		t.Errorf("currencyCode(\"EUR\") = %q, want %q", got, want)
 	}
 }
+
+func TestFmtPriceValueAboveOne(t *testing.T) {
+	got := FmtPriceValue(67234.56)
+	want := "67,234.56"
+	if got != want {
+		t.Errorf("FmtPriceValue(67234.56) = %q, want %q", got, want)
+	}
+}
+
+func TestFmtPriceValueBelowOne(t *testing.T) {
+	got := FmtPriceValue(0.00012345)
+	want := "0.000123"
+	if got != want {
+		t.Errorf("FmtPriceValue(0.00012345) = %q, want %q", got, want)
+	}
+}
+
+func TestFmtPriceValueExactlyOne(t *testing.T) {
+	got := FmtPriceValue(1.0)
+	want := "1.00"
+	if got != want {
+		t.Errorf("FmtPriceValue(1.0) = %q, want %q", got, want)
+	}
+}
+
+func TestFmtMoneyValueZero(t *testing.T) {
+	got := FmtMoneyValue(0)
+	want := "0.00"
+	if got != want {
+		t.Errorf("FmtMoneyValue(0) = %q, want %q", got, want)
+	}
+}
+
+func TestFmtMoneyValueThousands(t *testing.T) {
+	got := FmtMoneyValue(12345.678)
+	want := "12,345.68"
+	if got != want {
+		t.Errorf("FmtMoneyValue(12345.678) = %q, want %q", got, want)
+	}
+}

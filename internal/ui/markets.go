@@ -260,7 +260,7 @@ func (m MarketsModel) View() string {
 
 	for i := m.offset; i < end; i++ {
 		c := m.coins[i]
-		price := format.FmtPrice(c.Rate, m.currency)
+		price := format.FmtPriceValue(c.Rate)
 		change := format.FmtChange(c.PriceChange)
 
 		if c.PriceChange >= 0 {

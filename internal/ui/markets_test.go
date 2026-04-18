@@ -56,8 +56,8 @@ func TestMarketsCoinsLoadedMsg(t *testing.T) {
 		t.Errorf("expected view to contain 'BTC', got %q", view)
 	}
 
-	if !strings.Contains(view, "USD 67,000.00") {
-		t.Errorf("expected view to contain 'USD 67,000.00', got %q", view)
+	if !strings.Contains(view, "67,000.00") {
+		t.Errorf("expected view to contain '67,000.00', got %q", view)
 	}
 
 	if !strings.Contains(view, "Name") {

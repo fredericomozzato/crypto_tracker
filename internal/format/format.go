@@ -36,6 +36,23 @@ func FmtMoney(v float64, currency string) string {
 	return currencyCode(currency) + " " + addCommas(parts[0]) + "." + parts[1]
 }
 
+// FmtPriceValue formats a price value without the currency prefix.
+// Same rules as FmtPrice for decimal places, but omits the "USD " prefix.
+func FmtPriceValue(v float64) string {
+	if v >= 1 {
+		parts := strings.SplitN(fmt.Sprintf("%.2f", v), ".", 2)
+		return addCommas(parts[0]) + "." + parts[1]
+	}
+	return fmt.Sprintf("%.6f", v)
+}
+
+// FmtMoneyValue formats a holding value without the currency prefix.
+// Always 2 decimal places with thousands separator.
+func FmtMoneyValue(v float64) string {
+	parts := strings.SplitN(fmt.Sprintf("%.2f", v), ".", 2)
+	return addCommas(parts[0]) + "." + parts[1]
+}
+
 func addCommas(s string) string {
 	n := len(s)
 	if n <= 3 {
