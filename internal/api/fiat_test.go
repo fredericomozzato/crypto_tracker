@@ -46,15 +46,15 @@ func TestFilterFiatNoMatches(t *testing.T) {
 
 func TestFilterFiatAllFiat(t *testing.T) {
 	// Build list of all fiat codes from the map
-	allFiat := make([]string, 0, len(FiatCurrencies))
-	for code := range FiatCurrencies {
+	allFiat := make([]string, 0, len(fiatCurrencies))
+	for code := range fiatCurrencies {
 		allFiat = append(allFiat, code)
 	}
 
 	result := FilterFiat(allFiat)
 
-	if len(result) != len(FiatCurrencies) {
-		t.Errorf("expected %d fiat codes, got %d", len(FiatCurrencies), len(result))
+	if len(result) != len(fiatCurrencies) {
+		t.Errorf("expected %d fiat codes, got %d", len(fiatCurrencies), len(result))
 	}
 
 	// Sort both for comparison

@@ -97,9 +97,10 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 		fiatCodes := api.FilterFiat(msg.codes)
 		currencies := make([]store.Currency, len(fiatCodes))
 		for i, code := range fiatCodes {
+			name, _ := api.FiatCurrencyName(code)
 			currencies[i] = store.Currency{
 				Code: code,
-				Name: api.FiatCurrencies[code],
+				Name: name,
 			}
 		}
 		return m, m.cmdUpsertCurrencies(currencies)
@@ -124,8 +125,7 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 				}
 				m.mode = m.makePickingMode(m.currencies)
 			case tea.KeyEscape:
-				// Return focus to tab bar - this is handled by AppModel
-				// The tab itself doesn't need to do anything special
+				// Esc does nothing in browsing mode (user can use Tab/1-3 to switch tabs)
 				return m, nil
 			}
 
@@ -145,7 +145,7 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 				if picking.cursor < len(picking.filtered)-1 {
 					picking.cursor++
 				}
-				picking.adjustViewport(m.height)
+				picking.adjustViewport()
 				m.mode = picking
 				return m, nil
 
@@ -153,7 +153,7 @@ func (m SettingsModel) update(msg tea.Msg) (SettingsModel, tea.Cmd) {
 				if picking.cursor > 0 {
 					picking.cursor--
 				}
-				picking.adjustViewport(m.height)
+				picking.adjustViewport()
 				m.mode = picking
 				return m, nil
 
@@ -221,7 +221,7 @@ func filterCurrencies(currencies []store.Currency, filter string) []store.Curren
 
 // adjustViewport updates offset so the cursor stays visible.
 // The picker displays at most maxVisibleItems (10) currencies at once.
-func (p *settingsPicking) adjustViewport(_ int) {
+func (p *settingsPicking) adjustViewport() {
 	const maxVisibleItems = 10
 	visibleRows := maxVisibleItems
 	if visibleRows > len(p.filtered) {
@@ -270,7 +270,7 @@ func (m SettingsModel) viewBrowsing() string {
 
 	// Show current currency as a selectable row
 	currencyName := m.selectedCode
-	if name, ok := api.FiatCurrencies[m.selectedCode]; ok {
+	if name, ok := api.FiatCurrencyName(m.selectedCode); ok {
 		currencyName = name
 	}
 	line := fmt.Sprintf("  Base Currency: %s (%s)", strings.ToUpper(m.selectedCode), currencyName)
@@ -280,12 +280,6 @@ func (m SettingsModel) viewBrowsing() string {
 	line = highlight.Render(line)
 
 	b.WriteString(line + "\n")
-
-	if m.lastErr != "" {
-		b.WriteString("\n")
-		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
-		b.WriteString(errStyle.Render("Error: " + m.lastErr))
-	}
 
 	// Calculate panel inner height: total height minus borders (2) minus status bar (1)
 	innerHeight := m.height - 3
@@ -358,8 +352,8 @@ func (m SettingsModel) viewPicking(picking settingsPicking) string {
 		Render(b.String())
 
 	// Place dialog in center without pushing tab bar off-screen
-	// The dialog height is fixed based on content, not terminal height
-	content := lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dialog)
+	// Leave one row for the status bar to prevent overflow
+	content := lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, dialog)
 	return content + "\n" + m.renderStatusBar()
 }
 
@@ -368,7 +362,7 @@ func (m SettingsModel) renderStatusBar() string {
 	var content string
 	switch m.mode.(type) {
 	case settingsBrowsing:
-		content = "Enter to change • Tab/1-3 switch tabs • Esc back to tabs • q quit"
+		content = "Enter to change • Tab/1-3 switch tabs • q quit"
 	case settingsPicking:
 		content = "↑/↓ navigate • type to filter • Esc cancel"
 	}

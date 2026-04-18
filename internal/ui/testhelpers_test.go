@@ -11,13 +11,12 @@ import (
 
 // StubStore implements store.Store for testing
 type StubStore struct {
-	coins               []store.Coin
-	portfolios          []store.Portfolio
-	holdingRows         []store.HoldingRow
-	currencies          []store.Currency
-	supportedCurrencies []string
-	settings            map[string]string
-	err                 error
+	coins       []store.Coin
+	portfolios  []store.Portfolio
+	holdingRows []store.HoldingRow
+	currencies  []store.Currency
+	settings    map[string]string
+	err         error
 }
 
 func (s *StubStore) UpsertCoin(ctx context.Context, c store.Coin) error {

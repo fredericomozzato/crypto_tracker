@@ -83,9 +83,7 @@ func TestSettingsEnterOpensPickerWhenCurrenciesAvailable(t *testing.T) {
 }
 
 func TestSettingsEnterTriggersFetchWhenNoCurrencies(t *testing.T) {
-	stub := &StubStore{
-		supportedCurrencies: []string{"usd", "eur", "btc"},
-	}
+	stub := &StubStore{}
 	api := &StubAPI{
 		supportedCurrencies: []string{"usd", "eur", "btc"},
 	}

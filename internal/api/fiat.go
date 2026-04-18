@@ -2,10 +2,10 @@ package api
 
 import "sort"
 
-// FiatCurrencies is a hardcoded map of fiat currency codes to their display names.
+// fiatCurrencies is a hardcoded map of fiat currency codes to their display names.
 // These are filtered against the CoinGecko API response to determine which
 // currencies the app supports.
-var FiatCurrencies = map[string]string{
+var fiatCurrencies = map[string]string{
 	"aed": "UAE Dirham",
 	"ars": "Argentine Peso",
 	"aud": "Australian Dollar",
@@ -42,16 +42,23 @@ var FiatCurrencies = map[string]string{
 	"zar": "South African Rand",
 }
 
-// FilterFiat returns the intersection of apiCodes with FiatCurrencies.
+// FilterFiat returns the intersection of apiCodes with fiatCurrencies.
 // Only codes present in both the API response and our fiat map are returned.
 // Results are sorted alphabetically by currency code.
 func FilterFiat(apiCodes []string) []string {
 	result := make([]string, 0, len(apiCodes))
 	for _, code := range apiCodes {
-		if _, ok := FiatCurrencies[code]; ok {
+		if _, ok := fiatCurrencies[code]; ok {
 			result = append(result, code)
 		}
 	}
 	sort.Strings(result)
 	return result
+}
+
+// FiatCurrencyName returns the display name for a fiat currency code.
+// The second return value indicates whether the code is a known fiat currency.
+func FiatCurrencyName(code string) (string, bool) {
+	name, ok := fiatCurrencies[code]
+	return name, ok
 }
