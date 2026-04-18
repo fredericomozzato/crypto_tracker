@@ -286,10 +286,15 @@ func (m SettingsModel) viewBrowsing() string {
 		b.WriteString(errStyle.Render("Error: " + m.lastErr))
 	}
 
-	// Pad to fill available height minus status bar
-	contentHeight := m.height - 2 // Account for borders
+	// Calculate panel inner height: total height minus borders (2) minus status bar (1)
+	innerHeight := m.height - 3
+	if innerHeight < 1 {
+		innerHeight = 1
+	}
+
+	// Pad content to fill inner height
 	lines := strings.Split(b.String(), "\n")
-	for len(lines) < contentHeight {
+	for len(lines) < innerHeight {
 		lines = append(lines, "")
 	}
 	content := strings.Join(lines, "\n")
@@ -298,7 +303,7 @@ func (m SettingsModel) viewBrowsing() string {
 	accentColor := lipgloss.Color("#00FFFF")
 	panelStyle := lipgloss.NewStyle().
 		Width(m.width - 2).
-		Height(contentHeight).
+		Height(innerHeight).
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(accentColor)
 
