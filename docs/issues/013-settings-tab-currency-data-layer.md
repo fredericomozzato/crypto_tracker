@@ -1,5 +1,5 @@
 ---
-status: in_review
+status: done
 branch: feat/013-settings-tab-currency-data-layer
 ---
 

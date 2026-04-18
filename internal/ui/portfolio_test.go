@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewPortfolioModel(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	if m.width != 0 || m.height != 0 {
 		t.Errorf("expected zero-value dimensions, got width=%d, height=%d", m.width, m.height)
 	}
@@ -28,14 +28,14 @@ func TestNewPortfolioModel(t *testing.T) {
 }
 
 func TestPortfolioInputActiveFalseWhenBrowsing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	if m.InputActive() {
 		t.Error("expected InputActive() to return false when browsing")
 	}
 }
 
 func TestPortfolioInputActiveTrueWhenCreating(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
 	if !updated.InputActive() {
 		t.Error("expected InputActive() to return true after pressing 'n'")
@@ -43,7 +43,7 @@ func TestPortfolioInputActiveTrueWhenCreating(t *testing.T) {
 }
 
 func TestPortfolioNKeyOpensCreateDialog(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
 	if !updated.InputActive() {
 		t.Error("expected 'n' key to switch to creating mode")
@@ -51,7 +51,7 @@ func TestPortfolioNKeyOpensCreateDialog(t *testing.T) {
 }
 
 func TestPortfolioCreateDialogEscCancels(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
 	if !m.InputActive() {
 		t.Fatal("expected to be in creating mode")
@@ -64,7 +64,7 @@ func TestPortfolioCreateDialogEscCancels(t *testing.T) {
 }
 
 func TestPortfolioCreateDialogEnterWithEmptyIsNoOp(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
 	if !m.InputActive() {
 		t.Fatal("expected to be in creating mode")
@@ -80,7 +80,7 @@ func TestPortfolioCreateDialogEnterWithEmptyIsNoOp(t *testing.T) {
 }
 
 func TestPortfolioCreateDialogEnterWithTextReturnsCmd(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
 	if !m.InputActive() {
 		t.Fatal("expected to be in creating mode")
@@ -107,7 +107,7 @@ func TestPortfolioCreateDialogEnterWithTextReturnsCmd(t *testing.T) {
 }
 
 func TestPortfolioJKNavigation(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 
@@ -134,7 +134,7 @@ func TestPortfolioJKNavigation(t *testing.T) {
 }
 
 func TestPortfolioCursorClampsAtTop(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 
@@ -153,7 +153,7 @@ func TestPortfolioCursorClampsAtTop(t *testing.T) {
 }
 
 func TestPortfolioCursorClampsAtBottom(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 
@@ -179,7 +179,7 @@ func TestPortfolioCursorClampsAtBottom(t *testing.T) {
 }
 
 func TestPortfoliosLoadedMsgPopulatesModel(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	threePortfolios := []store.Portfolio{
 		{ID: 1, Name: "A"},
 		{ID: 2, Name: "B"},
@@ -192,7 +192,7 @@ func TestPortfoliosLoadedMsgPopulatesModel(t *testing.T) {
 }
 
 func TestPortfoliosLoadedMsgPositionsCursorOnFocusID(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	threePortfolios := []store.Portfolio{
 		{ID: 1, Name: "A"},
 		{ID: 2, Name: "B"},
@@ -205,7 +205,7 @@ func TestPortfoliosLoadedMsgPositionsCursorOnFocusID(t *testing.T) {
 }
 
 func TestPortfoliosLoadedMsgSwitchesToBrowsing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m, _ = m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
 	if !m.InputActive() {
 		t.Fatal("expected to be in creating mode")
@@ -218,7 +218,7 @@ func TestPortfoliosLoadedMsgSwitchesToBrowsing(t *testing.T) {
 }
 
 func TestPortfolioViewShowsPortfolioNames(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{
@@ -236,7 +236,7 @@ func TestPortfolioViewShowsPortfolioNames(t *testing.T) {
 }
 
 func TestPortfolioViewShowsCursorIndicator(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{
@@ -261,7 +261,7 @@ func TestPortfolioViewShowsCursorIndicator(t *testing.T) {
 }
 
 func TestPortfolioViewShowsEmptyStateWhenNoPortfolios(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 
@@ -272,7 +272,7 @@ func TestPortfolioViewShowsEmptyStateWhenNoPortfolios(t *testing.T) {
 }
 
 func TestPortfolioHandlesWindowSizeMsg(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	updated, _ := m.update(tea.WindowSizeMsg{Width: 120, Height: 39})
 
 	if updated.width != 120 {
@@ -284,7 +284,7 @@ func TestPortfolioHandlesWindowSizeMsg(t *testing.T) {
 }
 
 func TestPortfolioAKeyInBrowsingModeIsNoOp(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	_, cmd := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
@@ -297,7 +297,7 @@ func TestPortfolioAKeyInListModeOpensCoinPicker(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios:  []store.Portfolio{{ID: 1, Name: "Test"}},
 		holdingRows: []store.HoldingRow{{ID: 1, CoinID: 1, Name: "Bitcoin", Ticker: "BTC"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	// Load portfolios and holdings into model, then enter list mode
@@ -313,7 +313,7 @@ func TestPortfolioAKeyInListModeOpensCoinPicker(t *testing.T) {
 func TestCoinPickerReadyMsgEntersAddCoinMode(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	coins := threeCoins()
@@ -326,7 +326,7 @@ func TestCoinPickerReadyMsgEntersAddCoinMode(t *testing.T) {
 func TestCoinPickerReadyMsgWithNoCoinsShowsError(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	updated, _ := m.update(coinPickerReadyMsg{coins: nil})
@@ -341,7 +341,7 @@ func TestCoinPickerReadyMsgWithNoCoinsShowsError(t *testing.T) {
 func TestCoinPickerFiltersOutAlreadyHeldCoins(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	// First load holdings - coin ID 1 is held
@@ -373,7 +373,7 @@ func TestCoinPickerAllHeldShowsError(t *testing.T) {
 			{CoinID: coins[1].ID},
 			{CoinID: coins[2].ID},
 		},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	m.holdings = []store.HoldingRow{
@@ -393,7 +393,7 @@ func TestCoinPickerAllHeldShowsError(t *testing.T) {
 func TestCoinPickerEscReturnsToBrowsing(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	coins := threeCoins()
@@ -410,7 +410,7 @@ func TestCoinPickerEscReturnsToBrowsing(t *testing.T) {
 func TestCoinPickerJKNavigatesCursor(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	coins := threeCoins()
@@ -433,7 +433,7 @@ func TestCoinPickerJKNavigatesCursor(t *testing.T) {
 func TestCoinPickerCursorClampsAtTop(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	coins := threeCoins()
@@ -454,7 +454,7 @@ func TestCoinPickerCursorClampsAtTop(t *testing.T) {
 func TestCoinPickerCursorClampsAtBottom(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	coins := threeCoins()
@@ -477,7 +477,7 @@ func TestCoinPickerCursorClampsAtBottom(t *testing.T) {
 func TestCoinPickerEnterTransitionsToAddAmount(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	coins := threeCoins()
@@ -498,7 +498,7 @@ func TestCoinPickerEnterTransitionsToAddAmount(t *testing.T) {
 func TestAddAmountEscReturnsToCoinPicker(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	coins := threeCoins()
@@ -515,7 +515,7 @@ func TestAddAmountEscReturnsToCoinPicker(t *testing.T) {
 func TestAddAmountEnterWithEmptyIsNoOp(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	coins := threeCoins()
@@ -535,7 +535,7 @@ func TestAddAmountEnterWithEmptyIsNoOp(t *testing.T) {
 func TestAddAmountEnterWithNonNumericSetsInlineError(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	coins := threeCoins()
@@ -563,7 +563,7 @@ func TestAddAmountEnterWithNonNumericSetsInlineError(t *testing.T) {
 func TestAddAmountEnterWithZeroOrNegativeSetsInlineError(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	coins := threeCoins()
@@ -586,7 +586,7 @@ func TestAddAmountEnterWithZeroOrNegativeSetsInlineError(t *testing.T) {
 func TestAddAmountEnterWithValidAmountReturnsCmd(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	// Load portfolios into model
@@ -606,7 +606,7 @@ func TestAddAmountEnterWithValidAmountReturnsCmd(t *testing.T) {
 }
 
 func TestHoldingsSavedMsgReturnsToBrowsing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	updated, _ := m.update(holdingsSavedMsg{holdings: []store.HoldingRow{}})
 	if updated.InputActive() {
 		t.Error("expected holdingsSavedMsg to return to browsing mode")
@@ -614,7 +614,7 @@ func TestHoldingsSavedMsgReturnsToBrowsing(t *testing.T) {
 }
 
 func TestHoldingsSavedMsgUpdatesHoldings(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	rows := []store.HoldingRow{
 		{ID: 1, Name: "Bitcoin", Amount: 1.5},
 	}
@@ -625,7 +625,7 @@ func TestHoldingsSavedMsgUpdatesHoldings(t *testing.T) {
 }
 
 func TestHoldingsLoadedMsgUpdatesHoldings(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	rows := []store.HoldingRow{
 		{ID: 1, Name: "Bitcoin", Amount: 1.5},
 	}
@@ -690,7 +690,7 @@ func TestFilterCoinsNoMatch(t *testing.T) {
 // Slice 8 tests - List mode, Edit, Delete
 
 func TestEnterFromBrowsingToListingMode(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -710,7 +710,7 @@ func TestEnterFromBrowsingToListingMode(t *testing.T) {
 }
 
 func TestEnterFromBrowsingNoHoldingsEntersListMode(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -725,7 +725,7 @@ func TestEnterFromBrowsingNoHoldingsEntersListMode(t *testing.T) {
 }
 
 func TestListingJkNavigation(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -752,7 +752,7 @@ func TestListingJkNavigation(t *testing.T) {
 }
 
 func TestListingGJumpsToTop(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -771,7 +771,7 @@ func TestListingGJumpsToTop(t *testing.T) {
 }
 
 func TestListingGJumpsToBottom(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -790,7 +790,7 @@ func TestListingGJumpsToBottom(t *testing.T) {
 }
 
 func TestListingClampsAtTop(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -808,7 +808,7 @@ func TestListingClampsAtTop(t *testing.T) {
 }
 
 func TestListingClampsAtBottom(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -826,7 +826,7 @@ func TestListingClampsAtBottom(t *testing.T) {
 }
 
 func TestListingEscReturnsToBrowsing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -843,7 +843,7 @@ func TestListingEscReturnsToBrowsing(t *testing.T) {
 }
 
 func TestListingEnterOpensEditDialog(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -860,7 +860,7 @@ func TestListingEnterOpensEditDialog(t *testing.T) {
 }
 
 func TestListingXOpensDeleteDialog(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -879,7 +879,7 @@ func TestListingXOpensDeleteDialog(t *testing.T) {
 func TestListingAOpensCoinPicker(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -895,7 +895,7 @@ func TestListingAOpensCoinPicker(t *testing.T) {
 }
 
 func TestEditAmountEscReturnsToListing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -912,7 +912,7 @@ func TestEditAmountEscReturnsToListing(t *testing.T) {
 }
 
 func TestEditAmountEnterWithEmptyNoOp(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -932,7 +932,7 @@ func TestEditAmountEnterWithEmptyNoOp(t *testing.T) {
 }
 
 func TestEditAmountEnterWithNonNumericShowsError(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -962,7 +962,7 @@ func TestEditAmountEnterWithNonNumericShowsError(t *testing.T) {
 }
 
 func TestEditAmountEnterWithZeroOrNegativeShowsError(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -989,7 +989,7 @@ func TestEditAmountEnterWithZeroOrNegativeShowsError(t *testing.T) {
 func TestEditAmountEnterWithValidAmountReturnsCmd(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1012,7 +1012,7 @@ func TestEditAmountEnterWithValidAmountReturnsCmd(t *testing.T) {
 }
 
 func TestEditingAmountInputActive(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.mode = editingAmount{}
 	if !m.InputActive() {
 		t.Error("expected InputActive() to be true for editingAmount mode")
@@ -1020,7 +1020,7 @@ func TestEditingAmountInputActive(t *testing.T) {
 }
 
 func TestDeleteConfirmEscReturnsToListing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1038,7 +1038,7 @@ func TestDeleteConfirmEscReturnsToListing(t *testing.T) {
 func TestDeleteConfirmEnterReturnsCmd(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1054,7 +1054,7 @@ func TestDeleteConfirmEnterReturnsCmd(t *testing.T) {
 }
 
 func TestDeletingInputActive(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.mode = deleting{}
 	if m.InputActive() {
 		t.Error("expected InputActive() to be false for deleting mode")
@@ -1062,7 +1062,7 @@ func TestDeletingInputActive(t *testing.T) {
 }
 
 func TestDeleteConfirmOtherKeysIgnored(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1081,7 +1081,7 @@ func TestDeleteConfirmOtherKeysIgnored(t *testing.T) {
 }
 
 func TestCursorClampedAfterDelete(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1099,7 +1099,7 @@ func TestCursorClampedAfterDelete(t *testing.T) {
 }
 
 func TestCursorStaysAtSamePositionAfterDelete(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1122,7 +1122,7 @@ func TestCursorStaysAtSamePositionAfterDelete(t *testing.T) {
 }
 
 func TestHoldingDeletedMsgUpdatesHoldings(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.holdings = []store.HoldingRow{
 		{ID: 1, Name: "Bitcoin"},
 		{ID: 2, Name: "Ethereum"},
@@ -1137,7 +1137,7 @@ func TestHoldingDeletedMsgUpdatesHoldings(t *testing.T) {
 }
 
 func TestHoldingDeletedMsgClampsCursor(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.holdings = []store.HoldingRow{
 		{ID: 1, Name: "Bitcoin"},
 		{ID: 2, Name: "Ethereum"},
@@ -1153,7 +1153,7 @@ func TestHoldingDeletedMsgClampsCursor(t *testing.T) {
 }
 
 func TestHoldingDeletedMsgReturnsToListing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.holdings = []store.HoldingRow{
 		{ID: 1, Name: "Bitcoin"},
 		{ID: 2, Name: "Ethereum"},
@@ -1169,7 +1169,7 @@ func TestHoldingDeletedMsgReturnsToListing(t *testing.T) {
 }
 
 func TestHoldingDeletedMsgToBrowsingWhenEmpty(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.holdings = []store.HoldingRow{
 		{ID: 1, Name: "Bitcoin"},
 	}
@@ -1182,7 +1182,7 @@ func TestHoldingDeletedMsgToBrowsingWhenEmpty(t *testing.T) {
 }
 
 func TestHoldingsSavedFromEditReturnsToListing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.holdings = []store.HoldingRow{
 		{ID: 1, Name: "Bitcoin"},
 	}
@@ -1197,7 +1197,7 @@ func TestHoldingsSavedFromEditReturnsToListing(t *testing.T) {
 }
 
 func TestHoldingsSavedFromAddReturnsToBrowsing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.holdings = []store.HoldingRow{}
 	m.mode = addAmount{}
 
@@ -1210,7 +1210,7 @@ func TestHoldingsSavedFromAddReturnsToBrowsing(t *testing.T) {
 }
 
 func TestBrowsingPgDnScrollsHoldingsPreview(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1226,7 +1226,7 @@ func TestBrowsingPgDnScrollsHoldingsPreview(t *testing.T) {
 }
 
 func TestBrowsingPgUpScrollsHoldingsPreview(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1243,7 +1243,7 @@ func TestBrowsingPgUpScrollsHoldingsPreview(t *testing.T) {
 }
 
 func TestBrowsingPgUpDoesNotGoBelowZero(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1259,7 +1259,7 @@ func TestBrowsingPgUpDoesNotGoBelowZero(t *testing.T) {
 }
 
 func TestBrowsingJkResetsScrollOffset(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{
@@ -1279,7 +1279,7 @@ func TestBrowsingJkResetsScrollOffset(t *testing.T) {
 }
 
 func TestListingModeShowsPanelFocus(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1295,7 +1295,7 @@ func TestListingModeShowsPanelFocus(t *testing.T) {
 }
 
 func TestBrowsingModeShowsPanelFocus(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1311,7 +1311,7 @@ func TestBrowsingModeShowsPanelFocus(t *testing.T) {
 }
 
 func TestEditDialogShowsCoinName(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1331,7 +1331,7 @@ func TestEditDialogShowsCoinName(t *testing.T) {
 }
 
 func TestDeleteDialogShowsCoinName(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1352,7 +1352,7 @@ func TestDeleteDialogShowsCoinName(t *testing.T) {
 }
 
 func TestPortfolioViewShowsHoldingsTable(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1366,7 +1366,7 @@ func TestPortfolioViewShowsHoldingsTable(t *testing.T) {
 }
 
 func TestPortfolioViewShowsNoHoldingsMessage(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{{ID: 1, Name: "Test"}}
@@ -1378,7 +1378,7 @@ func TestPortfolioViewShowsNoHoldingsMessage(t *testing.T) {
 }
 
 func TestPortfolioInputActiveForAddCoinMode(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.mode = addCoin{}
 	if !m.InputActive() {
 		t.Error("expected InputActive() to be true for addCoin mode")
@@ -1386,7 +1386,7 @@ func TestPortfolioInputActiveForAddCoinMode(t *testing.T) {
 }
 
 func TestPortfolioInputActiveForAddAmountMode(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.mode = addAmount{}
 	if !m.InputActive() {
 		t.Error("expected InputActive() to be true for addAmount mode")
@@ -1396,7 +1396,7 @@ func TestPortfolioInputActiveForAddAmountMode(t *testing.T) {
 // Slice 9 tests - Portfolio Edit and Delete
 
 func TestBrowsingEKeyOpensEditDialog(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{
@@ -1411,7 +1411,7 @@ func TestBrowsingEKeyOpensEditDialog(t *testing.T) {
 }
 
 func TestBrowsingEKeyNoPortfoliosIsNoOp(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{}
@@ -1424,7 +1424,7 @@ func TestBrowsingEKeyNoPortfoliosIsNoOp(t *testing.T) {
 }
 
 func TestEditingPortfolioEscReturnsToBrowsing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.mode = editingPortfolio{
@@ -1440,7 +1440,7 @@ func TestEditingPortfolioEscReturnsToBrowsing(t *testing.T) {
 }
 
 func TestEditingPortfolioEnterWithEmptyNameReturnsToBrowsing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	ti := textinput.New()
@@ -1457,7 +1457,7 @@ func TestEditingPortfolioEnterWithEmptyNameReturnsToBrowsing(t *testing.T) {
 }
 
 func TestEditingPortfolioEnterWithSameNameReturnsToBrowsing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	ti := textinput.New()
@@ -1475,7 +1475,7 @@ func TestEditingPortfolioEnterWithSameNameReturnsToBrowsing(t *testing.T) {
 }
 
 func TestEditingPortfolioEnterWithDuplicateNameShowsError(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{
@@ -1505,7 +1505,7 @@ func TestEditingPortfolioEnterWithValidNameReturnsCmd(t *testing.T) {
 		portfolios: []store.Portfolio{
 			{ID: 1, Name: "Old Name"},
 		},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{
@@ -1527,7 +1527,7 @@ func TestEditingPortfolioEnterWithValidNameReturnsCmd(t *testing.T) {
 }
 
 func TestEditingPortfolioInputActive(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.mode = editingPortfolio{}
 
 	if !m.InputActive() {
@@ -1536,7 +1536,7 @@ func TestEditingPortfolioInputActive(t *testing.T) {
 }
 
 func TestEditingPortfolioPrePopulatedName(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{
@@ -1555,7 +1555,7 @@ func TestEditingPortfolioPrePopulatedName(t *testing.T) {
 }
 
 func TestBrowsingXKeyOpensDeleteDialog(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{
@@ -1570,7 +1570,7 @@ func TestBrowsingXKeyOpensDeleteDialog(t *testing.T) {
 }
 
 func TestBrowsingXKeyNoPortfoliosIsNoOp(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{}
@@ -1583,7 +1583,7 @@ func TestBrowsingXKeyNoPortfoliosIsNoOp(t *testing.T) {
 }
 
 func TestDeletingPortfolioEscReturnsToBrowsing(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.mode = deletingPortfolio{
@@ -1602,7 +1602,7 @@ func TestDeletingPortfolioEnterReturnsCmd(t *testing.T) {
 		portfolios: []store.Portfolio{
 			{ID: 1, Name: "Test"},
 		},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{
@@ -1620,7 +1620,7 @@ func TestDeletingPortfolioEnterReturnsCmd(t *testing.T) {
 }
 
 func TestDeletingPortfolioOtherKeysIgnored(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.mode = deletingPortfolio{
@@ -1637,7 +1637,7 @@ func TestDeletingPortfolioOtherKeysIgnored(t *testing.T) {
 }
 
 func TestDeletingPortfolioInputActive(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.mode = deletingPortfolio{}
 
 	if m.InputActive() {
@@ -1646,7 +1646,7 @@ func TestDeletingPortfolioInputActive(t *testing.T) {
 }
 
 func TestPortfolioDeletedMsgUpdatesPortfolios(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.portfolios = []store.Portfolio{
 		{ID: 1, Name: "Portfolio A"},
 		{ID: 2, Name: "Portfolio B"},
@@ -1664,7 +1664,7 @@ func TestPortfolioDeletedMsgUpdatesPortfolios(t *testing.T) {
 }
 
 func TestPortfolioDeletedMsgClampsCursor(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.portfolios = []store.Portfolio{
 		{ID: 1, Name: "Portfolio A"},
 		{ID: 2, Name: "Portfolio B"},
@@ -1685,7 +1685,7 @@ func TestPortfolioDeletedMsgClampsCursor(t *testing.T) {
 }
 
 func TestPortfolioDeletedMsgResetsScrollOffset(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.portfolios = []store.Portfolio{
 		{ID: 1, Name: "Portfolio A"},
 	}
@@ -1699,7 +1699,7 @@ func TestPortfolioDeletedMsgResetsScrollOffset(t *testing.T) {
 }
 
 func TestPortfolioDeletedMsgToBrowsingWhenEmpty(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.portfolios = []store.Portfolio{
 		{ID: 1, Name: "Portfolio A"},
 	}
@@ -1721,7 +1721,7 @@ func TestPortfolioDeletedMsgLoadsHoldingsForNewSelection(t *testing.T) {
 		portfolios: []store.Portfolio{
 			{ID: 1, Name: "Remaining"},
 		},
-	})
+	}, "usd")
 	m.portfolios = []store.Portfolio{
 		{ID: 1, Name: "To Delete"},
 		{ID: 2, Name: "Remaining"},
@@ -1741,7 +1741,7 @@ func TestPortfolioDeletedMsgLoadsHoldingsForNewSelection(t *testing.T) {
 }
 
 func TestEditPortfolioDialogShowsCurrentName(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{
@@ -1761,7 +1761,7 @@ func TestEditPortfolioDialogShowsCurrentName(t *testing.T) {
 }
 
 func TestDeletePortfolioDialogShowsName(t *testing.T) {
-	m := NewPortfolioModel(testCtx, &StubStore{})
+	m := NewPortfolioModel(testCtx, &StubStore{}, "usd")
 	m.width = 100
 	m.height = 30
 	m.portfolios = []store.Portfolio{
@@ -1780,7 +1780,7 @@ func TestDeletePortfolioDialogShowsName(t *testing.T) {
 func TestCoinPickerTypingFilters(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	coins := []store.Coin{
@@ -1807,7 +1807,7 @@ func TestCoinPickerTypingFilters(t *testing.T) {
 func TestCoinPickerCursorClampedAfterFilter(t *testing.T) {
 	m := NewPortfolioModel(testCtx, &StubStore{
 		portfolios: []store.Portfolio{{ID: 1, Name: "Test"}},
-	})
+	}, "usd")
 	m.width = 100
 	m.height = 30
 	coins := []store.Coin{

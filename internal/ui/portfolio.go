@@ -111,14 +111,16 @@ type PortfolioModel struct {
 	scrollOffset   int // vertical scroll offset for holdings list preview
 	mode           portfolioMode
 	lastErr        string
+	currency       string
 }
 
 // NewPortfolioModel creates a new PortfolioModel with the given dependencies.
-func NewPortfolioModel(ctx context.Context, s store.Store) PortfolioModel {
+func NewPortfolioModel(ctx context.Context, s store.Store, currency string) PortfolioModel {
 	return PortfolioModel{
-		ctx:   ctx,
-		store: s,
-		mode:  browsing{},
+		ctx:      ctx,
+		store:    s,
+		mode:     browsing{},
+		currency: currency,
 	}
 }
 
@@ -577,6 +579,22 @@ func (m PortfolioModel) update(msg tea.Msg) (PortfolioModel, tea.Cmd) {
 	case errMsg:
 		m.lastErr = msg.err.Error()
 		return m, nil
+
+	case currencyChangedMsg:
+		m.currency = msg.code
+		// Don't reload holdings yet — prices in DB are still in the old currency.
+		// When MarketsModel finishes refreshing, pricesUpdatedMsg will be broadcast,
+		// and we'll reload holdings then.
+		return m, nil
+
+	case pricesUpdatedMsg:
+		// Prices in the DB have been updated (possibly in a new currency after a
+		// currency change). Reload holdings so Value, Proportion, and totals
+		// reflect the new rates.
+		if len(m.portfolios) > 0 {
+			return m, m.cmdLoadHoldings(m.portfolios[m.cursor].ID)
+		}
+		return m, nil
 	}
 
 	return m, nil
@@ -787,7 +805,7 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 	}
 
 	var b strings.Builder
-	b.WriteString(titleStyle.Render(fmt.Sprintf("Holdings — %s (%s)", selectedPortfolio.Name, format.FmtMoney(totalValue))) + "\n")
+	b.WriteString(titleStyle.Render(fmt.Sprintf("Holdings — %s (%s)", selectedPortfolio.Name, format.FmtMoney(totalValue, m.currency))) + "\n")
 
 	if len(m.holdings) == 0 {
 		b.WriteString("no holdings — press a to add one")
@@ -835,8 +853,8 @@ func (m PortfolioModel) renderRightPanel(height, width int) string {
 			truncate(h.Name, 15),
 			h.Ticker,
 			h.Amount,
-			format.FmtPrice(h.Rate),
-			format.FmtMoney(h.Value),
+			format.FmtPrice(h.Rate, m.currency),
+			format.FmtMoney(h.Value, m.currency),
 			changeStr,
 			h.Proportion,
 		)
@@ -1179,7 +1197,7 @@ func (m PortfolioModel) renderDeleteDialog(mode deleting) string {
 	_, _ = fmt.Fprintf(&b, "Delete Holding\n\n")
 	_, _ = fmt.Fprintf(&b, "Coin: %s (%s)\n", mode.holding.Name, mode.holding.Ticker)
 	_, _ = fmt.Fprintf(&b, "Amount: %.4f\n", mode.holding.Amount)
-	_, _ = fmt.Fprintf(&b, "Value: %s\n\n", format.FmtMoney(mode.holding.Value))
+	_, _ = fmt.Fprintf(&b, "Value: %s\n\n", format.FmtMoney(mode.holding.Value, m.currency))
 	b.WriteString("Press Enter to confirm deletion, or Esc to cancel.")
 
 	return lipgloss.NewStyle().

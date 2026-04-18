@@ -47,8 +47,8 @@ func RetryAfterFromError(err error, defaultDuration time.Duration) time.Duration
 
 // CoinGeckoClient defines the interface for fetching cryptocurrency market data.
 type CoinGeckoClient interface {
-	FetchMarkets(ctx context.Context, limit int) ([]store.Coin, error)
-	FetchPrices(ctx context.Context, apiIDs []string) (map[string]float64, error)
+	FetchMarkets(ctx context.Context, currency string, limit int) ([]store.Coin, error)
+	FetchPrices(ctx context.Context, apiIDs []string, currency string) (map[string]float64, error)
 	FetchSupportedCurrencies(ctx context.Context) ([]string, error)
 }
 
@@ -128,13 +128,13 @@ type coinGeckoMarketResponse struct {
 }
 
 // FetchMarkets fetches market data for the top cryptocurrencies.
-func (c *HTTPClient) FetchMarkets(ctx context.Context, limit int) ([]store.Coin, error) {
+func (c *HTTPClient) FetchMarkets(ctx context.Context, currency string, limit int) ([]store.Coin, error) {
 	if err := c.throttle(ctx); err != nil {
 		return nil, err
 	}
 
 	params := url.Values{}
-	params.Set("vs_currency", "usd")
+	params.Set("vs_currency", currency)
 	params.Set("order", "market_cap_desc")
 	params.Set("per_page", strconv.Itoa(limit))
 	params.Set("page", "1")
@@ -208,8 +208,8 @@ func (c *HTTPClient) FetchMarkets(ctx context.Context, limit int) ([]store.Coin,
 type coinGeckoPriceResponse map[string]map[string]float64
 
 // FetchPrices fetches current prices for the given coin API IDs.
-// Returns a map of api_id -> USD price.
-func (c *HTTPClient) FetchPrices(ctx context.Context, apiIDs []string) (map[string]float64, error) {
+// Returns a map of api_id -> price in the specified currency.
+func (c *HTTPClient) FetchPrices(ctx context.Context, apiIDs []string, currency string) (map[string]float64, error) {
 	if err := c.throttle(ctx); err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func (c *HTTPClient) FetchPrices(ctx context.Context, apiIDs []string) (map[stri
 
 	params := url.Values{}
 	params.Set("ids", strings.Join(apiIDs, ","))
-	params.Set("vs_currencies", "usd")
+	params.Set("vs_currencies", currency)
 
 	u := c.baseURL + "/simple/price?" + params.Encode()
 
@@ -272,8 +272,8 @@ func (c *HTTPClient) FetchPrices(ctx context.Context, apiIDs []string) (map[stri
 
 	prices := make(map[string]float64, len(apiResp))
 	for apiID, priceData := range apiResp {
-		if usdPrice, ok := priceData["usd"]; ok {
-			prices[apiID] = usdPrice
+		if price, ok := priceData[currency]; ok {
+			prices[apiID] = price
 		}
 	}
 

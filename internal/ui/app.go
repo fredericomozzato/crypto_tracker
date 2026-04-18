@@ -32,6 +32,11 @@ func tabBarInactiveStyle() lipgloss.Style {
 		Foreground(lipgloss.Color("#888888"))
 }
 
+// currencyChangedMsg is sent when the user selects a new currency.
+type currencyChangedMsg struct {
+	code string
+}
+
 // AppModel is the root Bubble Tea model. Owns tab bar, tab routing, global quit.
 type AppModel struct {
 	width     int
@@ -40,15 +45,21 @@ type AppModel struct {
 	markets   MarketsModel
 	portfolio PortfolioModel
 	settings  SettingsModel
+	currency  string
 }
 
 // NewAppModel creates a new AppModel with the given dependencies.
 func NewAppModel(ctx context.Context, s store.Store, c api.CoinGeckoClient) AppModel {
+	currency, _ := s.GetSetting(ctx, "selected_currency")
+	if currency == "" {
+		currency = "usd"
+	}
 	return AppModel{
 		activeTab: tabMarkets,
-		markets:   NewMarketsModel(ctx, s, c),
-		portfolio: NewPortfolioModel(ctx, s),
+		markets:   NewMarketsModel(ctx, s, c, currency),
+		portfolio: NewPortfolioModel(ctx, s, currency),
 		settings:  NewSettingsModel(ctx, s, c),
+		currency:  currency,
 	}
 }
 
@@ -104,6 +115,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+
+	case currencyChangedMsg:
+		m.currency = msg.code
+		// Falls through to broadcast, which delivers the message to all children
 	}
 
 	// Background messages (non-key, non-resize) are always forwarded to all

@@ -43,7 +43,7 @@ func TestFetchMarketsSuccess(t *testing.T) {
 		baseURL:    server.URL,
 	}
 
-	coins, err := client.FetchMarkets(context.Background(), 1)
+	coins, err := client.FetchMarkets(context.Background(), "usd", 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestFetchMarketsAPIError(t *testing.T) {
 		baseURL:    server.URL,
 	}
 
-	_, err := client.FetchMarkets(context.Background(), 1)
+	_, err := client.FetchMarkets(context.Background(), "usd", 1)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -118,7 +118,7 @@ func TestFetchMarketsNetworkError(t *testing.T) {
 		baseURL:    server.URL,
 	}
 
-	_, err := client.FetchMarkets(context.Background(), 1)
+	_, err := client.FetchMarkets(context.Background(), "usd", 1)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -139,7 +139,7 @@ func TestFetchMarketsContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
-	_, err := client.FetchMarkets(ctx, 1)
+	_, err := client.FetchMarkets(ctx, "usd", 1)
 	if err == nil {
 		t.Fatal("expected error for cancelled context, got nil")
 	}
@@ -186,7 +186,7 @@ func TestFetchMarketsWithAPIKey(t *testing.T) {
 		apiKey:     "test-key",
 	}
 
-	_, err := client.FetchMarkets(context.Background(), 1)
+	_, err := client.FetchMarkets(context.Background(), "usd", 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestFetchPricesSuccess(t *testing.T) {
 		baseURL:    server.URL,
 	}
 
-	prices, err := client.FetchPrices(context.Background(), []string{"bitcoin", "ethereum"})
+	prices, err := client.FetchPrices(context.Background(), []string{"bitcoin", "ethereum"}, "usd")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -250,7 +250,7 @@ func TestFetchPricesEmptyIDs(t *testing.T) {
 		baseURL:    "http://localhost",
 	}
 
-	prices, err := client.FetchPrices(context.Background(), []string{})
+	prices, err := client.FetchPrices(context.Background(), []string{}, "usd")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestFetchPricesAPIError(t *testing.T) {
 		baseURL:    server.URL,
 	}
 
-	_, err := client.FetchPrices(context.Background(), []string{"bitcoin"})
+	_, err := client.FetchPrices(context.Background(), []string{"bitcoin"}, "usd")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -296,7 +296,7 @@ func TestFetchPricesContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := client.FetchPrices(ctx, []string{"bitcoin"})
+	_, err := client.FetchPrices(ctx, []string{"bitcoin"}, "usd")
 	if err == nil {
 		t.Fatal("expected error for cancelled context, got nil")
 	}
@@ -326,7 +326,7 @@ func TestFetchPricesWithAPIKey(t *testing.T) {
 		apiKey:     "test-key",
 	}
 
-	prices, err := client.FetchPrices(context.Background(), []string{"bitcoin"})
+	prices, err := client.FetchPrices(context.Background(), []string{"bitcoin"}, "usd")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -360,13 +360,13 @@ func TestThrottleEnforcesMinimumInterval(t *testing.T) {
 
 	// First request
 	start := time.Now()
-	_, err := client.FetchMarkets(context.Background(), 1)
+	_, err := client.FetchMarkets(context.Background(), "usd", 1)
 	if err != nil {
 		t.Fatalf("unexpected error on first call: %v", err)
 	}
 
 	// Second request should be throttled
-	_, err = client.FetchMarkets(context.Background(), 1)
+	_, err = client.FetchMarkets(context.Background(), "usd", 1)
 	elapsed := time.Since(start)
 	if err != nil {
 		t.Fatalf("unexpected error on second call: %v", err)
@@ -393,7 +393,7 @@ func TestThrottleWithContextCancellation(t *testing.T) {
 	client := newHTTPClientWithInterval("", minInterval, server.URL)
 
 	// First request to set lastRequestAt
-	_, _ = client.FetchMarkets(context.Background(), 1)
+	_, _ = client.FetchMarkets(context.Background(), "usd", 1)
 
 	// Second request with cancelled context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -402,7 +402,7 @@ func TestThrottleWithContextCancellation(t *testing.T) {
 		cancel()
 	}()
 
-	_, err := client.FetchMarkets(ctx, 1)
+	_, err := client.FetchMarkets(ctx, "usd", 1)
 	if err == nil {
 		t.Fatal("expected error for cancelled context, got nil")
 	}
@@ -421,7 +421,7 @@ func TestFetchMarketsRateLimit429(t *testing.T) {
 
 	client := newHTTPClientWithInterval("", 10*time.Millisecond, server.URL)
 
-	_, err := client.FetchMarkets(context.Background(), 1)
+	_, err := client.FetchMarkets(context.Background(), "usd", 1)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -449,7 +449,7 @@ func TestFetchPricesRateLimit429(t *testing.T) {
 
 	client := newHTTPClientWithInterval("", 10*time.Millisecond, server.URL)
 
-	_, err := client.FetchPrices(context.Background(), []string{"bitcoin"})
+	_, err := client.FetchPrices(context.Background(), []string{"bitcoin"}, "usd")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -478,7 +478,7 @@ func TestFetchMarkets429WithRetryAfterHeader(t *testing.T) {
 
 	client := newHTTPClientWithInterval("", 10*time.Millisecond, server.URL)
 
-	_, err := client.FetchMarkets(context.Background(), 1)
+	_, err := client.FetchMarkets(context.Background(), "usd", 1)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
