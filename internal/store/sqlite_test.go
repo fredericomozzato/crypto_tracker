@@ -1303,3 +1303,296 @@ func TestCreatePortfolioDuplicateName(t *testing.T) {
 		t.Error("expected error when creating portfolio with duplicate name, got nil")
 	}
 }
+
+func TestUpsertCurrencies(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	currencies := []Currency{
+		{Code: "eur", Name: "Euro"},
+		{Code: "usd", Name: "US Dollar"},
+		{Code: "gbp", Name: "British Pound"},
+	}
+
+	if err := s.UpsertCurrencies(ctx, currencies); err != nil {
+		t.Fatalf("failed to upsert currencies: %v", err)
+	}
+
+	result, err := s.GetAllCurrencies(ctx)
+	if err != nil {
+		t.Fatalf("failed to get all currencies: %v", err)
+	}
+
+	if len(result) != 3 {
+		t.Fatalf("expected 3 currencies, got %d", len(result))
+	}
+
+	// Should be ordered by code: eur, gbp, usd
+	expected := []struct {
+		code string
+		name string
+	}{
+		{"eur", "Euro"},
+		{"gbp", "British Pound"},
+		{"usd", "US Dollar"},
+	}
+
+	for i, exp := range expected {
+		if result[i].Code != exp.code {
+			t.Errorf("position %d: expected code %s, got %s", i, exp.code, result[i].Code)
+		}
+		if result[i].Name != exp.name {
+			t.Errorf("position %d: expected name %s, got %s", i, exp.name, result[i].Name)
+		}
+	}
+}
+
+func TestUpsertCurrenciesUpdatesName(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Insert with original name
+	if err := s.UpsertCurrencies(ctx, []Currency{{Code: "usd", Name: "Old Name"}}); err != nil {
+		t.Fatalf("failed to upsert first time: %v", err)
+	}
+
+	// Upsert with new name
+	if err := s.UpsertCurrencies(ctx, []Currency{{Code: "usd", Name: "US Dollar"}}); err != nil {
+		t.Fatalf("failed to upsert second time: %v", err)
+	}
+
+	result, err := s.GetAllCurrencies(ctx)
+	if err != nil {
+		t.Fatalf("failed to get currencies: %v", err)
+	}
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 currency, got %d", len(result))
+	}
+
+	if result[0].Name != "US Dollar" {
+		t.Errorf("expected updated name 'US Dollar', got %s", result[0].Name)
+	}
+}
+
+func TestUpsertCurrenciesEmpty(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Empty slice should be no-op without error
+	if err := s.UpsertCurrencies(ctx, []Currency{}); err != nil {
+		t.Errorf("expected no error for empty slice, got: %v", err)
+	}
+}
+
+func TestGetAllCurrenciesEmpty(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	result, err := s.GetAllCurrencies(ctx)
+	if err != nil {
+		t.Fatalf("failed to get currencies: %v", err)
+	}
+
+	if result == nil {
+		t.Error("expected non-nil slice, got nil")
+	}
+
+	if len(result) != 0 {
+		t.Errorf("expected 0 currencies, got %d", len(result))
+	}
+}
+
+func TestGetSettingExisting(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// selected_currency should be seeded on DB init
+	value, err := s.GetSetting(ctx, "selected_currency")
+	if err != nil {
+		t.Fatalf("failed to get setting: %v", err)
+	}
+
+	if value != "usd" {
+		t.Errorf("expected 'usd', got %q", value)
+	}
+}
+
+func TestGetSettingMissing(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	value, err := s.GetSetting(ctx, "nonexistent")
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	if value != "" {
+		t.Errorf("expected empty string, got %q", value)
+	}
+}
+
+func TestSetSettingInsert(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	if err := s.SetSetting(ctx, "test_key", "test_value"); err != nil {
+		t.Fatalf("failed to set setting: %v", err)
+	}
+
+	value, err := s.GetSetting(ctx, "test_key")
+	if err != nil {
+		t.Fatalf("failed to get setting: %v", err)
+	}
+
+	if value != "test_value" {
+		t.Errorf("expected 'test_value', got %q", value)
+	}
+}
+
+func TestSetSettingUpdate(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Set initial value
+	if err := s.SetSetting(ctx, "update_test", "original"); err != nil {
+		t.Fatalf("failed to set setting: %v", err)
+	}
+
+	// Update to new value
+	if err := s.SetSetting(ctx, "update_test", "updated"); err != nil {
+		t.Fatalf("failed to update setting: %v", err)
+	}
+
+	value, err := s.GetSetting(ctx, "update_test")
+	if err != nil {
+		t.Fatalf("failed to get setting: %v", err)
+	}
+
+	if value != "updated" {
+		t.Errorf("expected 'updated', got %q", value)
+	}
+}
+
+func TestDefaultCurrencySeed(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer func() {
+		_ = database.Close()
+	}()
+
+	s := NewSQLiteStore(database)
+	defer func() {
+		_ = s.Close()
+	}()
+
+	// Verify default currency is seeded
+	value, err := s.GetSetting(ctx, "selected_currency")
+	if err != nil {
+		t.Fatalf("failed to get setting: %v", err)
+	}
+
+	if value != "usd" {
+		t.Errorf("expected default currency 'usd', got %q", value)
+	}
+}
